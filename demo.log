@@ -1,0 +1,10 @@
+2022-04-21 15:05:38 - root - DEBUG     - main.py  : 15 line - This is  DEBUG !!
+2022-04-21 15:05:38 - root - INFO      - main.py  : 16 line - This is  INFO !!
+2022-04-21 15:05:38 - root - WARNING   - main.py  : 17 line - This is  WARNING !!
+2022-04-21 15:05:38 - root - ERROR     - main.py  : 18 line - This is  ERROR !!
+2022-04-21 15:05:38 - root - CRITICAL  - main.py  : 19 line - This is  CRITICAL !!
+2022-04-21 15:05:38 - root - ERROR     - main.py  : 27 line - division by zero
+Traceback (most recent call last):
+  File "D:/lab/main.py", line 24, in <module>
+    3 / 0
+ZeroDivisionError: division by zero

@@ -1,0 +1,9 @@
+2022-04-21 15:43:28 main.py [line:16] INFO: run time: 1.0093684196472168
+2022-04-21 15:43:28 main.py [line:17] DEBUG: debug?
+2022-04-21 15:43:28 main.py [line:18] ERROR: this is error!
+2022-04-21 15:43:37 main.py [line:16] INFO: run time: 1.0120742321014404
+2022-04-21 15:43:37 main.py [line:17] DEBUG: debug?
+2022-04-21 15:43:37 main.py [line:18] ERROR: this is er好ror!
+2022-04-21 15:45:50 main.py [line:16] INFO: run time: 1.003373622894287
+2022-04-21 15:45:50 main.py [line:17] DEBUG: debug?
+2022-04-21 15:45:50 main.py [line:18] ERROR: this is er好ror!

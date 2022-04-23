@@ -1,0 +1,250 @@
+Filename: D:/lab/xgboost_test/xg_t.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+    22 117.9648 MiB 117.9648 MiB           1   @profile(precision=4, stream=open('./log/memory_profiler.log', 'w+'))
+    23                                         def run():
+    24 117.9883 MiB   0.0234 MiB           1       iris = load_iris()
+    25                                         
+    26 117.9883 MiB   0.0000 MiB           1       x = iris.data
+    27 117.9883 MiB   0.0000 MiB           1       y = iris.target
+    28                                         
+    29 118.0742 MiB   0.0859 MiB           1       x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=45)
+    30                                         
+    31                                             params = {
+    32 118.0742 MiB   0.0000 MiB           1           'booster': 'gbtree',
+    33 118.0742 MiB   0.0000 MiB           1           'objective': 'multi:softmax',  # 回归任务设置为：'objective': 'reg:gamma',
+    34 118.0742 MiB   0.0000 MiB           1           'num_class': 3,  # 回归任务没有这个参数
+    35 118.0742 MiB   0.0000 MiB           1           'gamma': 0.1,
+    36 118.0742 MiB   0.0000 MiB           1           'max_depth': 6,
+    37 118.0742 MiB   0.0000 MiB           1           'lambda': 2,
+    38 118.0742 MiB   0.0000 MiB           1           'subsample': 0.7,
+    39 118.0742 MiB   0.0000 MiB           1           'colsample_bytree': 0.7,
+    40 118.0742 MiB   0.0000 MiB           1           'min_child_weight': 3,
+    41 118.0742 MiB   0.0000 MiB           1           'silent': 1,
+    42 118.0742 MiB   0.0000 MiB           1           'eta': 0.1,
+    43 118.0742 MiB   0.0000 MiB           1           'seed': 1000,
+    44 118.0742 MiB   0.0000 MiB           1           'nthread': 4,
+    45                                             }
+    46                                         
+    47 119.3906 MiB   1.3164 MiB           1       d_train = xgb.DMatrix(x_train, y_train)
+    48 121.8984 MiB   2.5078 MiB           1       model = xgb.train(params, d_train, 500)
+    49                                         
+    50 121.8984 MiB   0.0000 MiB           1       d_test = xgb.DMatrix(x_test)
+    51 121.9102 MiB   0.0117 MiB           1       ans = model.predict(d_test)
+    52                                         
+    53                                             # 计算准确率
+    54 121.9102 MiB   0.0000 MiB           1       cnt1 = 0
+    55 121.9102 MiB   0.0000 MiB           1       cnt2 = 0
+    56 121.9141 MiB   0.0000 MiB          31       for i in range(len(y_test)):
+    57 121.9141 MiB   0.0039 MiB          30           if ans[i] == y_test[i]:
+    58 121.9141 MiB   0.0000 MiB          28               cnt1 += 1
+    59                                                 else:
+    60 121.9141 MiB   0.0000 MiB           2               cnt2 += 1
+    61                                         
+    62 121.9141 MiB   0.0000 MiB           1       print("Accuracy: %.2f %% " % (100 * cnt1 / (cnt1 + cnt2)))
+    63                                         
+    64                                             # 显示重要特征
+    65 135.0195 MiB  13.1055 MiB           1       plot_importance(model)
+
+
+Filename: D:/lab/xgboost_test/xg_t.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+    22 135.0742 MiB 135.0742 MiB           1   @profile(precision=4, stream=open('./log/memory_profiler.log', 'w+'))
+    23                                         def run():
+    24 135.0742 MiB   0.0000 MiB           1       iris = load_iris()
+    25                                         
+    26 135.0742 MiB   0.0000 MiB           1       x = iris.data
+    27 135.0742 MiB   0.0000 MiB           1       y = iris.target
+    28                                         
+    29 135.0742 MiB   0.0000 MiB           1       x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=45)
+    30                                         
+    31                                             params = {
+    32 135.0742 MiB   0.0000 MiB           1           'booster': 'gbtree',
+    33 135.0742 MiB   0.0000 MiB           1           'objective': 'multi:softmax',  # 回归任务设置为：'objective': 'reg:gamma',
+    34 135.0742 MiB   0.0000 MiB           1           'num_class': 3,  # 回归任务没有这个参数
+    35 135.0742 MiB   0.0000 MiB           1           'gamma': 0.1,
+    36 135.0742 MiB   0.0000 MiB           1           'max_depth': 6,
+    37 135.0742 MiB   0.0000 MiB           1           'lambda': 2,
+    38 135.0742 MiB   0.0000 MiB           1           'subsample': 0.7,
+    39 135.0742 MiB   0.0000 MiB           1           'colsample_bytree': 0.7,
+    40 135.0742 MiB   0.0000 MiB           1           'min_child_weight': 3,
+    41 135.0742 MiB   0.0000 MiB           1           'silent': 1,
+    42 135.0742 MiB   0.0000 MiB           1           'eta': 0.1,
+    43 135.0742 MiB   0.0000 MiB           1           'seed': 1000,
+    44 135.0742 MiB   0.0000 MiB           1           'nthread': 4,
+    45                                             }
+    46                                         
+    47 135.1367 MiB   0.0625 MiB           1       d_train = xgb.DMatrix(x_train, y_train)
+    48 136.1094 MiB   0.9727 MiB           1       model = xgb.train(params, d_train, 500)
+    49                                         
+    50 136.1094 MiB   0.0000 MiB           1       d_test = xgb.DMatrix(x_test)
+    51 136.1094 MiB   0.0000 MiB           1       ans = model.predict(d_test)
+    52                                         
+    53                                             # 计算准确率
+    54 136.1094 MiB   0.0000 MiB           1       cnt1 = 0
+    55 136.1094 MiB   0.0000 MiB           1       cnt2 = 0
+    56 136.1094 MiB   0.0000 MiB          31       for i in range(len(y_test)):
+    57 136.1094 MiB   0.0000 MiB          30           if ans[i] == y_test[i]:
+    58 136.1094 MiB   0.0000 MiB          28               cnt1 += 1
+    59                                                 else:
+    60 136.1094 MiB   0.0000 MiB           2               cnt2 += 1
+    61                                         
+    62 136.1094 MiB   0.0000 MiB           1       print("Accuracy: %.2f %% " % (100 * cnt1 / (cnt1 + cnt2)))
+    63                                         
+    64                                             # 显示重要特征
+    65 136.3711 MiB   0.2617 MiB           1       plot_importance(model)
+
+
+Filename: D:/lab/xgboost_test/xg_t.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+    22 136.3203 MiB 136.3203 MiB           1   @profile(precision=4, stream=open('./log/memory_profiler.log', 'w+'))
+    23                                         def run():
+    24 136.3203 MiB   0.0000 MiB           1       iris = load_iris()
+    25                                         
+    26 136.3203 MiB   0.0000 MiB           1       x = iris.data
+    27 136.3203 MiB   0.0000 MiB           1       y = iris.target
+    28                                         
+    29 136.3203 MiB   0.0000 MiB           1       x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=45)
+    30                                         
+    31                                             params = {
+    32 136.3203 MiB   0.0000 MiB           1           'booster': 'gbtree',
+    33 136.3203 MiB   0.0000 MiB           1           'objective': 'multi:softmax',  # 回归任务设置为：'objective': 'reg:gamma',
+    34 136.3203 MiB   0.0000 MiB           1           'num_class': 3,  # 回归任务没有这个参数
+    35 136.3203 MiB   0.0000 MiB           1           'gamma': 0.1,
+    36 136.3203 MiB   0.0000 MiB           1           'max_depth': 6,
+    37 136.3203 MiB   0.0000 MiB           1           'lambda': 2,
+    38 136.3203 MiB   0.0000 MiB           1           'subsample': 0.7,
+    39 136.3203 MiB   0.0000 MiB           1           'colsample_bytree': 0.7,
+    40 136.3203 MiB   0.0000 MiB           1           'min_child_weight': 3,
+    41 136.3203 MiB   0.0000 MiB           1           'silent': 1,
+    42 136.3203 MiB   0.0000 MiB           1           'eta': 0.1,
+    43 136.3203 MiB   0.0000 MiB           1           'seed': 1000,
+    44 136.3203 MiB   0.0000 MiB           1           'nthread': 4,
+    45                                             }
+    46                                         
+    47 136.3203 MiB   0.0000 MiB           1       d_train = xgb.DMatrix(x_train, y_train)
+    48 138.6406 MiB   2.3203 MiB           1       model = xgb.train(params, d_train, 500)
+    49                                         
+    50 138.6406 MiB   0.0000 MiB           1       d_test = xgb.DMatrix(x_test)
+    51 138.6406 MiB   0.0000 MiB           1       ans = model.predict(d_test)
+    52                                         
+    53                                             # 计算准确率
+    54 138.6406 MiB   0.0000 MiB           1       cnt1 = 0
+    55 138.6406 MiB   0.0000 MiB           1       cnt2 = 0
+    56 138.6406 MiB   0.0000 MiB          31       for i in range(len(y_test)):
+    57 138.6406 MiB   0.0000 MiB          30           if ans[i] == y_test[i]:
+    58 138.6406 MiB   0.0000 MiB          28               cnt1 += 1
+    59                                                 else:
+    60 138.6406 MiB   0.0000 MiB           2               cnt2 += 1
+    61                                         
+    62 138.6406 MiB   0.0000 MiB           1       print("Accuracy: %.2f %% " % (100 * cnt1 / (cnt1 + cnt2)))
+    63                                         
+    64                                             # 显示重要特征
+    65 139.2031 MiB   0.5625 MiB           1       plot_importance(model)
+
+
+Filename: D:/lab/xgboost_test/xg_t.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+    22 136.7383 MiB 136.7383 MiB           1   @profile(precision=4, stream=open('./log/memory_profiler.log', 'w+'))
+    23                                         def run():
+    24 136.7422 MiB   0.0039 MiB           1       iris = load_iris()
+    25                                         
+    26 136.7422 MiB   0.0000 MiB           1       x = iris.data
+    27 136.7422 MiB   0.0000 MiB           1       y = iris.target
+    28                                         
+    29 136.7422 MiB   0.0000 MiB           1       x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=45)
+    30                                         
+    31                                             params = {
+    32 136.7422 MiB   0.0000 MiB           1           'booster': 'gbtree',
+    33 136.7422 MiB   0.0000 MiB           1           'objective': 'multi:softmax',  # 回归任务设置为：'objective': 'reg:gamma',
+    34 136.7422 MiB   0.0000 MiB           1           'num_class': 3,  # 回归任务没有这个参数
+    35 136.7422 MiB   0.0000 MiB           1           'gamma': 0.1,
+    36 136.7422 MiB   0.0000 MiB           1           'max_depth': 6,
+    37 136.7422 MiB   0.0000 MiB           1           'lambda': 2,
+    38 136.7422 MiB   0.0000 MiB           1           'subsample': 0.7,
+    39 136.7422 MiB   0.0000 MiB           1           'colsample_bytree': 0.7,
+    40 136.7422 MiB   0.0000 MiB           1           'min_child_weight': 3,
+    41 136.7422 MiB   0.0000 MiB           1           'silent': 1,
+    42 136.7422 MiB   0.0000 MiB           1           'eta': 0.1,
+    43 136.7422 MiB   0.0000 MiB           1           'seed': 1000,
+    44 136.7422 MiB   0.0000 MiB           1           'nthread': 4,
+    45                                             }
+    46                                         
+    47 136.7422 MiB   0.0000 MiB           1       d_train = xgb.DMatrix(x_train, y_train)
+    48 138.6797 MiB   1.9375 MiB           1       model = xgb.train(params, d_train, 500)
+    49                                         
+    50 138.6797 MiB   0.0000 MiB           1       d_test = xgb.DMatrix(x_test)
+    51 138.6797 MiB   0.0000 MiB           1       ans = model.predict(d_test)
+    52                                         
+    53                                             # 计算准确率
+    54 138.6797 MiB   0.0000 MiB           1       cnt1 = 0
+    55 138.6797 MiB   0.0000 MiB           1       cnt2 = 0
+    56 138.6797 MiB   0.0000 MiB          31       for i in range(len(y_test)):
+    57 138.6797 MiB   0.0000 MiB          30           if ans[i] == y_test[i]:
+    58 138.6797 MiB   0.0000 MiB          28               cnt1 += 1
+    59                                                 else:
+    60 138.6797 MiB   0.0000 MiB           2               cnt2 += 1
+    61                                         
+    62 138.6797 MiB   0.0000 MiB           1       print("Accuracy: %.2f %% " % (100 * cnt1 / (cnt1 + cnt2)))
+    63                                         
+    64                                             # 显示重要特征
+    65 138.9922 MiB   0.3125 MiB           1       plot_importance(model)
+
+
+Filename: D:/lab/xgboost_test/xg_t.py
+
+Line #    Mem usage    Increment  Occurrences   Line Contents
+=============================================================
+    22 138.5742 MiB 138.5742 MiB           1   @profile(precision=4, stream=open('./log/memory_profiler.log', 'w+'))
+    23                                         def run():
+    24 138.5781 MiB   0.0039 MiB           1       iris = load_iris()
+    25                                         
+    26 138.5781 MiB   0.0000 MiB           1       x = iris.data
+    27 138.5781 MiB   0.0000 MiB           1       y = iris.target
+    28                                         
+    29 138.5781 MiB   0.0000 MiB           1       x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=45)
+    30                                         
+    31                                             params = {
+    32 138.5781 MiB   0.0000 MiB           1           'booster': 'gbtree',
+    33 138.5781 MiB   0.0000 MiB           1           'objective': 'multi:softmax',  # 回归任务设置为：'objective': 'reg:gamma',
+    34 138.5781 MiB   0.0000 MiB           1           'num_class': 3,  # 回归任务没有这个参数
+    35 138.5781 MiB   0.0000 MiB           1           'gamma': 0.1,
+    36 138.5781 MiB   0.0000 MiB           1           'max_depth': 6,
+    37 138.5781 MiB   0.0000 MiB           1           'lambda': 2,
+    38 138.5781 MiB   0.0000 MiB           1           'subsample': 0.7,
+    39 138.5781 MiB   0.0000 MiB           1           'colsample_bytree': 0.7,
+    40 138.5781 MiB   0.0000 MiB           1           'min_child_weight': 3,
+    41 138.5781 MiB   0.0000 MiB           1           'silent': 1,
+    42 138.5781 MiB   0.0000 MiB           1           'eta': 0.1,
+    43 138.5781 MiB   0.0000 MiB           1           'seed': 1000,
+    44 138.5781 MiB   0.0000 MiB           1           'nthread': 4,
+    45                                             }
+    46                                         
+    47 138.5781 MiB   0.0000 MiB           1       d_train = xgb.DMatrix(x_train, y_train)
+    48 139.3750 MiB   0.7969 MiB           1       model = xgb.train(params, d_train, 500)
+    49                                         
+    50 139.3750 MiB   0.0000 MiB           1       d_test = xgb.DMatrix(x_test)
+    51 139.3750 MiB   0.0000 MiB           1       ans = model.predict(d_test)
+    52                                         
+    53                                             # 计算准确率
+    54 139.3750 MiB   0.0000 MiB           1       cnt1 = 0
+    55 139.3750 MiB   0.0000 MiB           1       cnt2 = 0
+    56 139.3750 MiB   0.0000 MiB          31       for i in range(len(y_test)):
+    57 139.3750 MiB   0.0000 MiB          30           if ans[i] == y_test[i]:
+    58 139.3750 MiB   0.0000 MiB          28               cnt1 += 1
+    59                                                 else:
+    60 139.3750 MiB   0.0000 MiB           2               cnt2 += 1
+    61                                         
+    62 139.3750 MiB   0.0000 MiB           1       print("Accuracy: %.2f %% " % (100 * cnt1 / (cnt1 + cnt2)))
+    63                                         
+    64                                             # 显示重要特征
+    65 139.7109 MiB   0.3359 MiB           1       plot_importance(model)
+
+
