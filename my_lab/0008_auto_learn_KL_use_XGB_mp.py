@@ -11,7 +11,8 @@ import warnings
 import os
 from my_logger import MyLog
 from multiprocessing import cpu_count, Pool, Manager
-from psutil import virtual_memory
+import psutil
+import gc
 
 warnings.filterwarnings('ignore')
 
@@ -25,6 +26,7 @@ train_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_y_data.
 
 # 保存路径
 SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/'
+
 
 def get_local_xgb_para():
     """personal xgb para"""
@@ -42,7 +44,7 @@ def get_local_xgb_para():
         'seed': 1001,
         'tree_method': 'hist'
     }
-    num_boost_round = 1
+    num_boost_round = xgb_boost_num
     return params, num_boost_round
 
 
@@ -84,14 +86,14 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test, global_ns, write_loc
                            num_boost_round=num_boost_round,
                            verbose_eval=False)
     d_test_local = xgb.DMatrix(fit_test)
-    proba = xgb_global.predict(d_test_local)
+    predict_prob = xgb_global.predict(d_test_local)
 
     # len_split长度 - 1长度 = 自动伸展为len_split  代表每个特征的差异
     x_train = x_train - pre_data
     x_train = abs(x_train)
     # 特征差异的均值
     mean_r = np.mean(x_train)
-    y = abs(true - proba)
+    y = abs(true - predict_prob)
 
     try:
         write_lock.acquire()
@@ -107,125 +109,148 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test, global_ns, write_loc
     finally:
         write_lock.release()
 
-    my_logger.info(f"pid:{os.getpid()} | a personal model build time : {time.time() - lsm_start_time}")
+    mem_used = round(psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024, 2)
+    run_time = round(time.time() - lsm_start_time, 2)
+    my_logger.info(f"idx:{I_idx} | pid:{os.getpid()} | mem_used:{mem_used} GB | time:{run_time} s")
 
 
-# ----- work space -----
-# 引入自定义日志类
-my_logger = MyLog().logger
+if __name__ == '__main__':
 
-cpu_count = cpu_count()
-mem = virtual_memory()
-mem_total = float(mem.total) / 1024 / 1024 / 1024
-mem_free = float(mem.free) / 1024 / 1024 / 1024
-my_logger.info(f"cpu_count: {cpu_count}")
-my_logger.info(f"mem total: {mem_total} GB, mem free:{mem_free} GB")
+    # ----- work space -----
+    # 引入自定义日志类
+    my_logger = MyLog().logger
 
-# ----- get data and init weight ----
-train_x = pd.read_feather(train_data_x_file)
-train_y = pd.read_feather(train_data_y_file)['Label']
+    my_logger.info(f"cpu_count: {cpu_count()}")
 
-# ----- similarity learning para -----
-# last and current iteration
-# every {step} iterations, updates normalize_weight in similarity learning
-last_iteration = 0
-cur_iteration = last_iteration + 1
-step = 5
+    # ----- get data and init weight ----
+    train_x = pd.read_feather(train_data_x_file)
+    train_y = pd.read_feather(train_data_y_file)['Label']
 
-l_rate = 0.00001
-select_rate = 0.1
-regularization_c = 0.05
-m_sample_weight = 0.01
+    # ----- similarity learning para -----
+    # last and current iteration
+    # every {step} iterations, updates normalize_weight in similarity learning
+    last_iteration = 0
+    cur_iteration = last_iteration + 1
+    step = 5
 
-pool_nums = 20
-max_tasks_per_child = 2
-n_personal_model_each_iteration = 1000
+    l_rate = 0.00001
+    select_rate = 0.1
+    regularization_c = 0.05
+    m_sample_weight = 0.01
 
-# ----- init weight -----
-if last_iteration == 0:
-    file_name = '0006_xgb_global_feature_weight_importance_boost91_v0.csv'
-    # dataframe -> series
-    normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name)).squeeze('columns')
-else:
-    file_name = f'0008_24h_{last_iteration}_feature_importance_v0.csv'
-    normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name)).squeeze('columns')
+    xgb_boost_num = 1
+    pool_nums = 20
+    max_tasks_per_child = 5
+    n_personal_model_each_iteration = 1000
 
-my_logger.info(f"normalize_weight shape: {normalize_weight.shape}")
+    # ----- init weight -----
+    if last_iteration == 0:
+        file_name = '0006_xgb_global_feature_weight_importance_boost91_v0.csv'
+        # dataframe -> series
+        normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name))
+    else:
+        file_name = f'0008_24h_{last_iteration}_feature_importance_v0.csv'
+        normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name))
 
-last_idx = list(range(train_x.shape[0]))
-shuffle(last_idx)
-last_x = train_x.loc[last_idx, :]
-last_x.reset_index(drop=True, inplace=True)
-last_y = train_y.loc[last_idx]
-last_y.reset_index(drop=True, inplace=True)
+    my_logger.info(f"normalize_weight shape: {normalize_weight.shape}")
 
-select_x = last_x.loc[:n_personal_model_each_iteration - 1, :]
-select_x.reset_index(drop=True, inplace=True)
-select_y = last_y.loc[:n_personal_model_each_iteration - 1]
-select_y.reset_index(drop=True, inplace=True)
+    last_idx = list(range(train_x.shape[0]))
+    shuffle(last_idx)
+    last_x = train_x.loc[last_idx, :]
+    last_x.reset_index(drop=True, inplace=True)
+    last_y = train_y.loc[last_idx]
+    last_y.reset_index(drop=True, inplace=True)
 
-train_rank_x = last_x.loc[n_personal_model_each_iteration - 1:, :].copy()
-train_rank_x.reset_index(drop=True, inplace=True)
-train_rank_y = last_y.loc[n_personal_model_each_iteration - 1:].copy()
-train_rank_y.reset_index(drop=True, inplace=True)
+    select_x = last_x.loc[:n_personal_model_each_iteration - 1, :]
+    select_x.reset_index(drop=True, inplace=True)
+    select_y = last_y.loc[:n_personal_model_each_iteration - 1]
+    select_y.reset_index(drop=True, inplace=True)
 
-len_split = int(train_rank_x.shape[0] * select_rate)
+    train_rank_x = last_x.loc[n_personal_model_each_iteration - 1:, :].copy()
+    train_rank_x.reset_index(drop=True, inplace=True)
+    train_rank_y = last_y.loc[n_personal_model_each_iteration - 1:].copy()
+    train_rank_y.reset_index(drop=True, inplace=True)
 
-# ----- iteration -----
-# one iteration includes 1000 personal models
-for iteration_idx in range(cur_iteration, cur_iteration + step):
-    iteration_data = pd.DataFrame(index=range(n_personal_model_each_iteration), columns=train_x.columns)
-    iteration_y = pd.Series(index=range(n_personal_model_each_iteration))
+    len_split = int(train_rank_x.shape[0] * select_rate)
 
-    # [0,1,2,...,n]
-    # build n_personal_model_each_iteration personal xgb
-    pool = Pool(processes=pool_nums)
+    my_logger.info(f"start iteration ... ")
 
-    # global namespace
-    global_manager = Manager()
-    # 写数据时需要加锁，避免出现漏写情况
-    lock = global_manager.Lock()
-    # 公共命名空间,多进程会用到的公共变量
-    global_namespace = global_manager.Namespace()
-    global_namespace.iteration_data = iteration_data
-    global_namespace.iteration_y = iteration_y
+    # ----- iteration -----
+    # one iteration includes 1000 personal models
+    for iteration_idx in range(cur_iteration, cur_iteration + step):
 
-    # 1000 models
-    pg_start_time = time.time()
-    for s_idx in range(n_personal_model_each_iteration):
-        pre_data_select = select_x.loc[s_idx, :]
-        true_select = select_y.loc[s_idx]
-        # dataframe格式 1000个样本中的被选择的那一个
-        x_test_select = select_x.loc[[s_idx], :]
+        memory_total = round(psutil.virtual_memory().total / 1024 / 1024 / 1024, 2)
+        memory_used = round(psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024, 2)
+        memory_percent = round(psutil.Process(os.getpid()).memory_percent(), 2)
+        my_logger.info(
+            f"iter idx: {iteration_idx} | mem total: {memory_total} | mem used: {memory_used} GB | "
+            f"percent: {memory_percent} %")
 
-        pool.apply_async(func=learn_similarity_measure,
-                         args=(pre_data_select, true_select, s_idx, x_test_select, global_namespace, lock))
+        iteration_data = pd.DataFrame(index=range(n_personal_model_each_iteration), columns=train_x.columns)
+        iteration_y = pd.Series(index=range(n_personal_model_each_iteration))
 
-    pool.close()
-    pool.join()
+        # [0,1,2,...,n]
+        # build n_personal_model_each_iteration personal xgb
+        pool = Pool(processes=pool_nums, maxtasksperchild=max_tasks_per_child)
 
-    my_logger.info(
-        f"{iteration_idx} build {n_personal_model_each_iteration} models need: {time.time() - pg_start_time}")
+        # global namespace
+        global_manager = Manager()
+        # 写数据时需要加锁，避免出现漏写情况
+        lock = global_manager.Lock()
+        # 公共命名空间,多进程会用到的公共变量
+        global_namespace = global_manager.Namespace()
+        global_namespace.iteration_data = iteration_data
+        global_namespace.iteration_y = iteration_y
 
-    # ----- update normalize weight -----
-    # 1000 * columns     columns
-    new_similar = global_namespace.iteration_data * normalize_weight
-    y_pred = new_similar.sum(axis=1)
+        my_logger.info(f"iter idx: {iteration_idx} | start building {n_personal_model_each_iteration} models ... ")
+        # 1000 models
+        pg_start_time = time.time()
+        for s_idx in range(n_personal_model_each_iteration):
+            pre_data_select = select_x.loc[s_idx, :]
+            true_select = select_y.loc[s_idx]
+            # dataframe格式 1000个样本中的被选择的那一个
+            x_test_select = select_x.loc[[s_idx], :]
 
-    new_ki = []
-    risk_gap = [real - pred for real, pred in zip(list(global_namespace.iteration_y), list(y_pred))]
-    for idx, value in enumerate(normalize_weight):
-        features_x = list(global_namespace.iteration_data.iloc[:, idx])
-        plus_list = [a * b for a, b in zip(risk_gap, features_x)]
-        new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
-        new_ki.append(new_value)
-    normalize_weight = list(map(lambda x: x if x > 0 else 0, new_ki))
+            pool.apply_async(func=learn_similarity_measure,
+                             args=(pre_data_select, true_select, s_idx, x_test_select, global_namespace, lock))
 
-    if iteration_idx % step == 0:
-        table = pd.DataFrame({'Ma_update_{}'.format(iteration_idx): normalize_weight})
-        # file name para: {select ratio}_{m sample weight}_{regularization}-{KL ID}_{iteration idx}
-        file_name = f'0008_24h_{iteration_idx}_feature_weight_initboost91_localboost1.csv'
-        table.to_csv(os.path.join(SAVE_PATH, file_name), index=False)
-        my_logger.info(f"save {file_name} success!")
+        pool.close()
+        pool.join()
 
-    my_logger.info(f"================== {iteration_idx} rounds done ! ==================")
+        run_time = round(time.time() - pg_start_time, 2)
+        my_logger.info(
+            f"{iteration_idx} build {n_personal_model_each_iteration} models need: {run_time}")
+
+        memory_used = round(psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024, 2)
+        my_logger.info(
+            f"iter idx: {iteration_idx} | after multiprocess memory used: {memory_used}")
+
+        # ----- update normalize weight -----
+        # 1000 * columns     columns
+        new_similar = global_namespace.iteration_data * normalize_weight
+        y_pred = new_similar.sum(axis=1)
+
+        new_ki = []
+        risk_gap = [real - pred for real, pred in zip(list(global_namespace.iteration_y), list(y_pred))]
+        for idx, value in enumerate(normalize_weight.squeeze('columns')):
+            features_x = list(global_namespace.iteration_data.iloc[:, idx])
+            plus_list = [a * b for a, b in zip(risk_gap, features_x)]
+            new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
+            new_ki.append(new_value)
+
+        # list -> dataframe
+        normalize_weight = pd.DataFrame({'Ma_update_{}'.format(iteration_idx): list(map(lambda x: x if x > 0 else 0, new_ki))})
+
+        try:
+            # if iteration_idx % step == 0:
+            file_name = f'0008_24h_{iteration_idx}_feature_weight_initboost91_localboost{xgb_boost_num}.csv'
+            normalize_weight.to_csv(os.path.join(SAVE_PATH, file_name), index=False)
+            my_logger.info(f"iter idx: {iteration_idx} | save {file_name} success!")
+        except Exception as err:
+            my_logger.info(f"iter idx: {iteration_idx} | save {file_name} error!")
+            raise err
+
+        del global_namespace, iteration_data, iteration_y, new_ki
+        gc.collect()
+
+        my_logger.info(f"======================= {iteration_idx} rounds done ! =======================")

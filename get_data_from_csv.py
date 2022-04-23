@@ -14,13 +14,15 @@ __author__ = 'cqh'
 
 import pandas as pd
 
-csv_path = r"/panfs/pfs.local/work/liu/xzhang_sta/yaorunze/data/data/AKI_1_2_3/2016/24h/no_rolling/train_data.csv"
+csv_path = r"0006_xgb_global_feature_weight_importance_boost91_v0.csv"
 print("===========================begin================================")
 
 data = pd.read_csv(csv_path)
+new_ki = []
+for idx, value in enumerate(data.squeeze('columns')):
+    print(idx, value)
+    new_ki.append(value)
 
-print("shape:", data.shape)
-print("columns:", data.columns)
-print("head:", data.head())
+table = pd.DataFrame({'Ma_update_{}'.format(1): list(map(lambda x: x if x > 0 else 0, new_ki))})
 
 print("===========================end================================")

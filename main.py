@@ -4,15 +4,17 @@ import multiprocessing as mp
 import time
 import numpy as np
 import pandas as pd
+import psutil
+from my_logger import MyLog
+import os
+my_logger = MyLog().logger
 
-def my_worker(dt):
-    print(dt, mp.current_process().pid)
-    time.sleep(10)
+def my_worker():
+    use = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024
+    use_per = psutil.Process(os.getpid()).memory_percent()
+    my_logger.info(use)
+    my_logger.info(use_per)
 
 
 if __name__ == '__main__':
-    file = '0006_xgb_global_feature_weight_importance_boost91_v0.csv'
-    data = pd.read_csv(file).squeeze('columns')
-
-    for idx,d in enumerate(data):
-        print(idx,d)
+    my_worker()

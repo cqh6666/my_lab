@@ -12,12 +12,12 @@
 """
 __author__ = 'cqh'
 
-from multiprocessing import Pool, Manager, Lock, Process, Array
+from multiprocessing import Pool, Manager
 import pandas as pd
 import time
 from my_logger import MyLog
 import os
-import tracemalloc
+import psutil
 
 n_personal_model_each_iteration = 1000
 my_logger = MyLog().logger
@@ -26,7 +26,6 @@ columns = ['aaa', 'bbb', 'ccc']
 
 def run(x, global_ns, lock):
     start_time = time.time()
-    my_logger.info(global_ns.list)
 
     try:
         lock.acquire()
@@ -42,36 +41,36 @@ def run(x, global_ns, lock):
         raise err
     finally:
         lock.release()
-    my_logger.info(f"time: {time.time() - start_time}")
+    memory_used = round(psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024, 2)
+    my_logger.info(f"pid:{os.getpid()} | memory used:{memory_used} MB")
 
 
 if __name__ == '__main__':
 
-    tracemalloc.start()
+    for i in range(100):
+        manager = Manager()
+        lock = manager.Lock()
+        global_namespace = manager.Namespace()
+        global_namespace.iteration_data = pd.DataFrame(index=range(n_personal_model_each_iteration), columns=columns)
+        global_namespace.iteration_y = pd.Series(index=range(n_personal_model_each_iteration), dtype='float64')
+        # del iteration_data
+        # del iteration_y
 
-    # iteration_data =
-    # iteration_y =
-    manager = Manager()
-    lock = manager.Lock()
-    global_namespace = manager.Namespace()
-    global_namespace.iteration_data = pd.DataFrame(index=range(n_personal_model_each_iteration), columns=columns)
-    global_namespace.iteration_y = pd.Series(index=range(n_personal_model_each_iteration), dtype='float64')
-    global_namespace.list = range(0,1000)
-    # del iteration_data
-    # del iteration_y
+        pool = Pool(processes=6)
+        st_t = time.time()
+        for j in range(n_personal_model_each_iteration):
+            pool.apply_async(func=run, args=(j, global_namespace, lock))
 
-    pool = Pool(processes=6)
-    st_t = time.time()
-    for i in range(n_personal_model_each_iteration):
-        pool.apply_async(func=run, args=(i, global_namespace, lock))
+        pool.close()
+        pool.join()
 
-    pool.close()
-    pool.join()
+        my_logger.info(f"all_time: {time.time() - st_t}")
+        print(global_namespace.iteration_data)
+        print(global_namespace.iteration_y)
 
-    my_logger.info(f"all_time: {time.time() - st_t}")
-    print(global_namespace.iteration_data)
-    print(global_namespace.iteration_y)
+        del global_namespace
 
-    current, peak = tracemalloc.get_traced_memory()
-    print(f"Current memory usage is {current / 10 ** 6}MB; Peak was {peak / 10 ** 6}MB")
-    tracemalloc.stop()
+        memory_used = round(psutil.Process(os.getpid()).memory_info().rss / 1024 /  1024, 2)
+        my_logger.info(f"[for]:pid:{os.getpid()} | memory used:{memory_used} MB")
+
+
