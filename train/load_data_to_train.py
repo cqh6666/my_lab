@@ -18,8 +18,7 @@ from sklearn.datasets import load_breast_cancer
 from sklearn.metrics import precision_score, recall_score, roc_auc_score
 import xgboost as xgb
 import numpy as np
-from matplotlib import pyplot as plt
-import logging
+import joblib
 
 source_path = r"D:\\lab\\feather\\iris_data.feather"
 
@@ -45,7 +44,6 @@ parameters = {
     'n_estimators': 5,
     'eta': 0.3,
     'objective': 'binary:logistic',  # error evaluation for multiclass tasks
-    'num_class': 3,  # number of classes to predic
     'max_depth': 3  # depth of the trees in the boosting process
 }
 num_round = 100  # the number of training iterations
@@ -53,14 +51,26 @@ num_round = 100  # the number of training iterations
 # 模型训练
 bst = xgb.train(parameters, dtrain, num_boost_round=num_round)
 
+# 模型预测
+preds = bst.predict(dtest)
+print(preds)
+print("-==================")
+
+joblib.dump(bst, "xgb_model.pkl")
+
+load_model = joblib.load("xgb_model.pkl")
+predict = load_model.predict(dtest)
+print("load model to predict:")
+params = load_model.get_xgb_params()
+print(params)
+print("========================")
+
 # 输出树结构
 tree_df = bst.trees_to_dataframe()
 print(tree_df[tree_df['Tree'] == 1])
 # xgb.plotting.plot_tree(bst, num_trees=0)
 
-# 模型预测
-preds = bst.predict(dtest)
-print(preds)
+
 print("========================")
 weight_1 = bst.get_fscore()
 weight_2 = bst.get_score(importance_type='weight')
@@ -72,7 +82,6 @@ print("weight_1", weight_1)
 print("weight_2", weight_2)
 
 print("==========================")
-
 
 # 选择表示最高概率的列
 best_preds = np.asarray([np.argmax(line) for line in preds])

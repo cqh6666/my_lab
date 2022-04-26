@@ -10,15 +10,10 @@ from gc import collect
 import warnings
 import sys
 import time
-from multiprocessing import cpu_count
 from my_logger import MyLog
-from memory_profiler import profile
 
 warnings.filterwarnings('ignore')
-profile_log = open('/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/log/profile_log.log','w+')
 my_logger = MyLog().logger
-
-my_logger.info(f"cpu_count: {cpu_count()}")
 
 
 def get_global_xgb_para():
@@ -45,16 +40,16 @@ def get_local_xgb_para():
     """personal xgb para"""
     params = {
         'booster': 'gbtree',
-        'max_depth': 8,
-        'min_child_weight': 10,
-        'subsample': 0.5,
-        'colsample_bytree': 0.5,
-        'eta': 0.15,
+        'max_depth': 11,
+        'min_child_weight': 7,
+        'subsample': 1,
+        'colsample_bytree': 0.7,
+        'eta': 0.05,
         'objective': 'binary:logistic',
-        'nthread': 20,
+        'nthread': 10,
         'verbosity': 0,
         'eval_metric': 'logloss',
-        'seed': 1001,
+        'seed': 998,
         'tree_method': 'hist'
     }
     num_boost_round = 1
@@ -72,9 +67,8 @@ def get_global_xgb():
     return model
 
 
-@profile(precision=4, stream=profile_log)
 def personalized_modeling(pre_data, idx, x_test):
-    """build personal model for target sample"""
+    """build personal model for target sample from test datasets"""
 
     personalized_modeling_start_time = time.time()
     similar_rank = pd.DataFrame()

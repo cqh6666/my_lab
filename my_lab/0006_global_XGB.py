@@ -42,7 +42,6 @@ def xgb_train_global(num_boost_round):
     d_train = xgb.DMatrix(train_x, label=train_y)
     d_test = xgb.DMatrix(test_x, label=test_y)
 
-    start = time.time()
     params = {
         'booster': 'gbtree',
         'max_depth': 8,
@@ -55,7 +54,8 @@ def xgb_train_global(num_boost_round):
         'verbosity': 0,
         'eval_metric': 'logloss',
         'seed': 999,
-        'tree_method': 'hist'
+        'tree_method': 'hist',
+        "early_stopping_rounds": num_boost_round / 2
     }
 
     # cv_result = xgb.cv(params, d_train, num_boost_round=500, early_stopping_rounds=100, nfold=5, metrics=['auc'])
@@ -68,9 +68,6 @@ def xgb_train_global(num_boost_round):
                       evals_result=evals_result,
                       verbose_eval=False)
     # print(evals_result)
-    end = time.time()
-    consume = end - start
-    my_logger.info(f"num_boost_round: {num_boost_round} : The fit time is {consume}")
     test_y_predict = model.predict(d_test)
     auc = roc_auc_score(test_y, test_y_predict)
     my_logger.info(f'num_boost_round: {num_boost_round} : The auc of this model is {auc}.\n')

@@ -11,39 +11,27 @@ import xgboost as xgb
 import warnings
 import os
 from my_logger import MyLog
-from multiprocessing import cpu_count
-import psutil
-from gc import collect
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-
+import sys
+from gc import collect
+import pickle
 warnings.filterwarnings('ignore')
-
-# 根路径
-ROOT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/'
-# 经过99.9筛选后的特征集合
-remain_feaure_file = os.path.join(ROOT_PATH, '24h_999_remained_feature.csv')
-# 训练集的X和Y
-train_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_x_data.feather')
-train_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_y_data.feather')
-
-# 保存路径
-SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/'
 
 
 def get_local_xgb_para():
     """personal xgb para"""
     params = {
         'booster': 'gbtree',
-        'max_depth': 8,
-        'min_child_weight': 10,
-        'subsample': 0.5,
-        'colsample_bytree': 0.5,
-        'eta': 0.15,
+        'max_depth': 11,
+        'min_child_weight': 7,
+        'subsample': 1,
+        'colsample_bytree': 0.7,
+        'eta': 0.05,
         'objective': 'binary:logistic',
-        'nthread': 20,
+        'nthread': 1,
         'verbosity': 0,
         'eval_metric': 'logloss',
-        'seed': 1001,
+        'seed': 998,
         'tree_method': 'hist'
     }
     num_boost_round = xgb_boost_num
@@ -81,12 +69,15 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
     d_train_local = xgb.DMatrix(fit_train, label=y_train, weight=sample_ki)
     params, num_boost_round = get_local_xgb_para()
-    xgb_global = xgb.train(params=params,
-                           dtrain=d_train_local,
-                           num_boost_round=num_boost_round,
-                           verbose_eval=False)
+
+    xgb_local = xgb.train(params=params,
+                          dtrain=d_train_local,
+                          num_boost_round=num_boost_round,
+                          verbose_eval=False,
+                          xgb_model=xgb_model)
+
     d_test_local = xgb.DMatrix(fit_test)
-    predict_prob = xgb_global.predict(d_test_local)
+    predict_prob = xgb_local.predict(d_test_local)
 
     # len_split长度 - 1长度 = 自动伸展为len_split  代表每个特征的差异
     x_train = x_train - pre_data
@@ -108,60 +99,65 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     finally:
         lock.release()
 
-    mem_used = round(psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024, 2)
     run_time = round(time.time() - lsm_start_time, 2)
     current_thread = threading.current_thread().getName()
     my_logger.info(
-        f"pid:{os.getpid()} | thread:{current_thread} | mem_used:{mem_used} GB | time:{run_time} s")
+        f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
 
 
 if __name__ == '__main__':
+
+    # 根路径
+    ROOT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/'
+    # 训练集的X和Y
+    train_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_x_data.feather')
+    train_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_y_data.feather')
+
+    # 保存路径
+    SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/'
+
+    # 迁移模型
+    xgb_model_file = '/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/pg/global_model/0006_24h_xgb_glo4_div1_snap1_rm1_miss2_norm1.pkl'
 
     # ----- work space -----
     # 引入自定义日志类
     my_logger = MyLog().logger
 
-    memory_total = round(psutil.virtual_memory().total / 1024 / 1024 / 1024, 2)
-    memory_used = round(psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024, 2)
-    memory_percent = round(psutil.Process(os.getpid()).memory_percent(), 2)
-    thread_num = len(threading.enumerate())
-    my_logger.warn(f"cpu_count: {cpu_count()} | thread_count: {thread_num}")
-    my_logger.warn(f"mem total: {memory_total} G | mem used: {memory_used} G | percent: {memory_percent} %")
-
     # ----- get data and init weight ----
     train_x = pd.read_feather(train_data_x_file)
     train_y = pd.read_feather(train_data_y_file)['Label']
+    xgb_model = pickle.load(open(xgb_model_file, "rb"))
 
     # ----- similarity learning para -----
     # last and current iteration
     # every {step} iterations, updates normalize_weight in similarity learning
-    last_iteration = 0
-    cur_iteration = last_iteration + 1
-    step = 5
+    init_iteration = int(sys.argv[1])
+    cur_iteration = init_iteration + 1
+    step = 4
 
     l_rate = 0.00001
     select_rate = 0.1
     regularization_c = 0.05
     m_sample_weight = 0.01
 
-    xgb_boost_num = 1
-    pool_nums = 20
-    max_tasks_per_child = 5
+    xgb_boost_num = 50
+    pool_nums = 25
     n_personal_model_each_iteration = 1000
 
     # ----- init weight -----
-    if last_iteration == 0:
-        file_name = '0006_xgb_global_feature_weight_importance_boost91_v0.csv'
+    if init_iteration == 0:
         # dataframe -> series
-        normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name))
+        file_name = '0008_24h_xgb_weight_glo2_div1_snap1_rm1_miss2_norm1.csv'
+        normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name), index_col=0)
     else:
-        file_name = f'0008_24h_{last_iteration}_feature_importance_v0.csv'
+        file_name = f'0008_24h_{init_iteration}_feature_weight_initboost91_localboost{xgb_boost_num}_mt.csv'
         normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name))
 
-    my_logger.warn(f"normalize_weight shape:{normalize_weight.shape}")
+    # my_logger.info(f"train_x:{train_x.shape} | train_y:{train_y.shape} | normalize_weight:{normalize_weight.shape}")
 
     last_idx = list(range(train_x.shape[0]))
     shuffle(last_idx)
+
     last_x = train_x.loc[last_idx, :]
     last_x.reset_index(drop=True, inplace=True)
     last_y = train_y.loc[last_idx]
@@ -179,7 +175,13 @@ if __name__ == '__main__':
 
     len_split = int(train_rank_x.shape[0] * select_rate)
 
-    my_logger.warn(f"start iteration ... ")
+    # [0,1,2,...,n]
+    # build n_personal_model_each_iteration personal xgb
+
+    # 写锁
+    lock = threading.Lock()
+
+    my_logger.warn("start iteration ... ")
 
     # ----- iteration -----
     # one iteration includes 1000 personal models
@@ -188,13 +190,7 @@ if __name__ == '__main__':
         iteration_data = pd.DataFrame(index=range(n_personal_model_each_iteration), columns=train_x.columns)
         iteration_y = pd.Series(index=range(n_personal_model_each_iteration))
 
-        # [0,1,2,...,n]
-        # build n_personal_model_each_iteration personal xgb
-
         pg_start_time = time.time()
-
-        # 写锁
-        lock = threading.Lock()
 
         with ThreadPoolExecutor(max_workers=pool_nums) as executor:
             thread_list = []
@@ -207,12 +203,12 @@ if __name__ == '__main__':
                 thread = executor.submit(learn_similarity_measure, pre_data_select, true_select, s_idx, x_test_select)
                 thread_list.append(thread)
             wait(thread_list, return_when=ALL_COMPLETED)
-        # collect()
 
-        my_logger.info(f"iter idx: {iteration_idx} | start building {n_personal_model_each_iteration} models ... ")
         # 1000 models
 
         run_time = round(time.time() - pg_start_time, 2)
+        my_logger.info(
+            f"iter idx:{iteration_idx} | build {n_personal_model_each_iteration} models need: {run_time}s")
 
         # ----- update normalize weight -----
         # 1000 * columns     columns
@@ -227,9 +223,10 @@ if __name__ == '__main__':
             new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
             new_ki.append(new_value)
 
+        new_ki_map = list(map(lambda x: x if x > 0 else 0, new_ki))
         # list -> dataframe
         normalize_weight = pd.DataFrame(
-            {'Ma_update_{}'.format(iteration_idx): list(map(lambda x: x if x > 0 else 0, new_ki))})
+            {'Ma_update_{}'.format(iteration_idx): new_ki_map})
 
         try:
             # if iteration_idx % step == 0:
@@ -241,4 +238,6 @@ if __name__ == '__main__':
             raise err
 
         del iteration_data, iteration_y, new_ki
-        my_logger.info(f"======================= {iteration_idx} rounds done ! =======================")
+        collect()
+
+        my_logger.info(f"======================= {iteration_idx} rounds done ! ========================")
