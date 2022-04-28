@@ -2,6 +2,8 @@
 """
 build personal xgb models for test data with learned KL metric
 """
+import os
+import pickle
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import threading
 import pandas as pd
@@ -32,7 +34,7 @@ def get_global_xgb_para():
         'tree_method': 'hist',
         'seed': 1001,
     }
-    num_boost_round = 300
+    num_boost_round = 50
     return params, num_boost_round
 
 
@@ -52,7 +54,7 @@ def get_local_xgb_para():
         'seed': 998,
         'tree_method': 'hist'
     }
-    num_boost_round = 1
+    num_boost_round = 50
     return params, num_boost_round
 
 
@@ -62,6 +64,7 @@ def get_global_xgb():
     d_train_global = xgb.DMatrix(data=train_x, label=train_y)
     model = xgb.train(params=params,
                       dtrain=d_train_global,
+                      n_thread=5,
                       num_boost_round=num_boost_round,
                       verbose_eval=False)
     return model
@@ -95,91 +98,99 @@ def personalized_modeling(pre_data, idx, x_test):
     xgb_local = xgb.train(params=params,
                           dtrain=d_train_local,
                           num_boost_round=num_boost_round,
-                          xgb_model=xgb_global,
+                          xgb_model=xgb_model,
                           verbose_eval=False)
-
-    # # not use transform
-    # xgb_local = xgb.train(params=params,
-    #                       dtrain=d_train_local,
-    #                       num_boost_round=num_boost_round,
-    #                       verbose_eval=False)
 
     d_test_local = xgb.DMatrix(fit_test)
     proba = xgb_local.predict(d_test_local)
 
     global_lock.acquire()
     test_result.loc[idx, 'proba'] = proba
-    p_weight.loc[idx, :] = xgb_local.get_score(importance_type='weight')
+    # p_weight.loc[idx, :] = xgb_local.get_score(importance_type='weight')
     global_lock.release()
 
-    my_logger.info(f"{idx} - time: {time.time() - personalized_modeling_start_time}")
+    run_time = round(time.time() - personalized_modeling_start_time, 2)
+    my_logger.info(f"idx:{idx} | build time:{run_time}s")
 
 
-# ----- work space -----
-# read data
-train_x = pd.read_feather('/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/24'
-                          '/24h_train_x_div1_snap1_rm1_miss1_norm1.feather')
-train_y = pd.read_feather('/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/24'
-                          '/24h_train_y_div1_snap1_rm1_miss1_norm1.feather')['Label']
-test_x = pd.read_feather('/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/24'
-                         '/24h_test_x_div1_snap1_rm1_miss1_norm1.feather')
-test_y = pd.read_feather('/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/24'
-                         '/24h_test_y_div1_snap1_rm1_miss1_norm1.feather')['Label']
 
-# read learned KL metric
-# learned_metric_iteration = 120
-learned_metric_iteration = str(sys.argv[3])
-# 读取迭代了k次的特征权重csv文件
-feature_weight = pd.read_csv(f'/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/pg/KL_result/0008_01_001_005-1_{learned_metric_iteration}.csv')
-feature_weight = feature_weight.iloc[:, 0].tolist()
+if __name__ == '__main__':
 
-# personal para setting
-select_ratio = 0.1
-m_sample_weight = 0.01
+    start_idx = int(sys.argv[1])
+    end_idx = int(sys.argv[2])
+    learned_metric_iteration = str(sys.argv[3])
 
-n_thread = 20
-# range of test
-# start_idx = 0
-start_idx = int(sys.argv[1])
-final_idx = test_x.shape[0]
-# end_idx = 20
-end_idx = int(sys.argv[2])
-end_idx = final_idx if end_idx > final_idx else end_idx
-my_logger.info(f"the idx range is: [{start_idx},{end_idx}]")
+    # ----- work space -----
+    # read data
+    # 根路径
+    ROOT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/'
+    WEIGHT_CSV_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/'
 
-# the number of selected train data
-len_split = int(train_x.shape[0] * select_ratio)
+    # 训练集的X和Y
+    train_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_x_data.feather')
+    train_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_y_data.feather')
+    test_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_test_x_data.feather')
+    test_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_test_y_data.feather')
 
-# init test result
-test_result = pd.DataFrame(columns=['real', 'proba'])
-test_result['real'] = test_y.iloc[start_idx:end_idx]
+    # 0008_24h_{iteration_idx}_feature_weight_initboost91_localboost{xgb_boost_num}_mt.csv 读取迭代了k次的特征权重csv文件
+    feature_importance_file = os.path.join(WEIGHT_CSV_PATH, f'0008_24h_{learned_metric_iteration}_feature_weight_initboost91_localboost50_mt.csv')
+    # 迁移模型
+    xgb_model_file = '/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/pg/global_model/0006_24h_xgb_glo4_div1_snap1_rm1_miss2_norm1.pkl'
 
-# init p_weight to save weight importance for each personalized model
-p_weight = pd.DataFrame(index=test_result.index.tolist(), columns=test_x.columns.tolist())
+    train_x = pd.read_feather(train_data_x_file)
+    train_y = pd.read_feather(train_data_y_file)['Label']
+    test_x = pd.read_feather(test_data_x_file)
+    test_y = pd.read_feather(test_data_y_file)['Label']
+    feature_weight = pd.read_csv(feature_importance_file)
+    feature_weight = feature_weight.iloc[:, 0].tolist()
 
-# init thread list
-thread_list = []
-# init thread pool
-pool = ThreadPoolExecutor(max_workers=n_thread)
-# get thread lock
-global_lock = threading.Lock()
+    # personal para setting
+    select_ratio = 0.1
+    m_sample_weight = 0.01
+    n_thread = 20
 
-# get global xgb model
-xgb_global = get_global_xgb()
+    final_idx = test_x.shape[0]
+    # start_idx = 0
+    # end_idx = 20
+    end_idx = final_idx if end_idx > final_idx else end_idx
+    my_logger.info(f"the idx range is: [{start_idx},{end_idx}]")
 
-# build personalized model for each test sample
-for test_idx in range(start_idx, end_idx):
-    pre_data_select = test_x.loc[test_idx, :]
-    x_test_select = test_x.loc[[test_idx], :]
+    # the number of selected train data
+    len_split = int(train_x.shape[0] * select_ratio)
 
-    # execute multi threads
-    thread = pool.submit(personalized_modeling, pre_data_select, test_idx, x_test_select)
-    thread_list.append(thread)
+    # init test result
+    test_result = pd.DataFrame(columns=['real', 'proba'])
+    test_result['real'] = test_y.iloc[start_idx:end_idx]
+
+    # init p_weight to save weight importance for each personalized model
+    # p_weight = pd.DataFrame(index=test_result.index.tolist(), columns=test_x.columns.tolist())
+
+    # get thread lock
+    global_lock = threading.Lock()
+
+    # get global xgb model to transfer learning
+    xgb_model = pickle.load(open(xgb_model_file, "rb"))
+
+    start_time = time.time()
+    # init thread list
+    thread_list = []
+    pool = ThreadPoolExecutor(max_workers=n_thread)
+    # build personalized model for each test sample
+    for test_idx in range(start_idx, end_idx):
+        pre_data_select = test_x.loc[test_idx, :]
+        x_test_select = test_x.loc[[test_idx], :]
+
+        # execute multi threads
+        thread = pool.submit(personalized_modeling, pre_data_select, test_idx, x_test_select)
+        thread_list.append(thread)
+
+    # wait for all threads completing
+    wait(thread_list, return_when=ALL_COMPLETED)
     collect()
 
-# wait for all threads completing
-wait(thread_list, return_when=ALL_COMPLETED)
+    run_time = round(time.time() - start_time, 2)
+    my_logger.info(f"build all model need time:{run_time}s")
 
-# ----- save result -----
-# xxx_{select ratio}_{sample weight}_{regularization}-{KL ID}_{start id}_{whether transfrom}
-test_result.to_csv(f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/test_result/0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv', index=True)
+    # ----- save result -----
+    test_result_csv = os.path.join(WEIGHT_CSV_PATH, f'24h_transfer_xgb_test_result/0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
+    test_result.to_csv(test_result_csv, index=True)
