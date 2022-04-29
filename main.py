@@ -7,7 +7,9 @@ import pandas as pd
 import psutil
 from my_logger import MyLog
 import os
+
 my_logger = MyLog().logger
+
 
 def my_worker():
     use = psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024
