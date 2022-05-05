@@ -47,7 +47,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     :param X_test: dataFrame格式的目标患者特征集
     :return:
     """
-    lsm_start_time = time.time()
+    # lsm_start_time = time.time()
 
     similar_rank = pd.DataFrame()
 
@@ -99,10 +99,10 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     finally:
         lock.release()
 
-    run_time = round(time.time() - lsm_start_time, 2)
-    current_thread = threading.current_thread().getName()
-    my_logger.info(
-        f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
+    # run_time = round(time.time() - lsm_start_time, 2)
+    # current_thread = threading.current_thread().getName()
+    # my_logger.info(
+    #     f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
 
 
 if __name__ == '__main__':
@@ -181,7 +181,7 @@ if __name__ == '__main__':
     # 写锁
     lock = threading.Lock()
 
-    my_logger.warn("start iteration ... ")
+    my_logger.warning("start iteration ... ")
 
     # ----- iteration -----
     # one iteration includes 1000 personal models
@@ -204,19 +204,23 @@ if __name__ == '__main__':
                 thread_list.append(thread)
             wait(thread_list, return_when=ALL_COMPLETED)
 
-        # 1000 models
-
         run_time = round(time.time() - pg_start_time, 2)
-        my_logger.info(
+        my_logger.warning(
             f"iter idx:{iteration_idx} | build {n_personal_model_each_iteration} models need: {run_time}s")
 
         # ----- update normalize weight -----
         # 1000 * columns     columns
+        """
+        iteration_data 代表目标样本与前N个相似样本的每个特征的差异平均值
+        乘上normaliza_weight 代表 代表每个特征有不一样的重要性，重要性高的特征差异就会更大
+        all_error 就是计算所有特征差异的权值之和
+        """
         new_similar = iteration_data * normalize_weight
-        y_pred = new_similar.sum(axis=1)
+        all_error = new_similar.sum(axis=1)
 
         new_ki = []
-        risk_gap = [real - pred for real, pred in zip(list(iteration_y), list(y_pred))]
+        risk_gap = [real - pred for real, pred in zip(list(iteration_y), list(all_error))]
+        # 具有单列或单行的数据被Squeeze为一个Series。
         for idx, value in enumerate(normalize_weight.squeeze('columns')):
             features_x = list(iteration_data.iloc[:, idx])
             plus_list = [a * b for a, b in zip(risk_gap, features_x)]
@@ -232,7 +236,7 @@ if __name__ == '__main__':
             # if iteration_idx % step == 0:
             file_name = f'0008_24h_{iteration_idx}_feature_weight_initboost91_localboost{xgb_boost_num}_mt.csv'
             normalize_weight.to_csv(os.path.join(SAVE_PATH, file_name), index=False)
-            my_logger.info(f"iter idx: {iteration_idx} | save {file_name} success!")
+            my_logger.warning(f"iter idx: {iteration_idx} | save {file_name} success!")
         except Exception as err:
             my_logger.error(f"iter idx: {iteration_idx} | save {file_name} error!")
             raise err
@@ -240,4 +244,4 @@ if __name__ == '__main__':
         del iteration_data, iteration_y, new_ki
         collect()
 
-        my_logger.info(f"======================= {iteration_idx} rounds done ! ========================")
+        my_logger.warning(f"======================= {iteration_idx} rounds done ! ========================")

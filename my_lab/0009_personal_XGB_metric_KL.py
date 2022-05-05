@@ -26,7 +26,7 @@ def get_global_xgb_para():
         'min_child_weight': 7,
         'eta': 0.15,
         'objective': 'binary:logistic',
-        'nthread': 20,
+        'nthread': 2,
         'verbosity': 0,
         'eval_metric': 'logloss',
         'subsample': 0.5,
@@ -48,7 +48,7 @@ def get_local_xgb_para():
         'colsample_bytree': 0.7,
         'eta': 0.05,
         'objective': 'binary:logistic',
-        'nthread': 10,
+        'nthread': 2,
         'verbosity': 0,
         'eval_metric': 'logloss',
         'seed': 998,
@@ -64,7 +64,6 @@ def get_global_xgb():
     d_train_global = xgb.DMatrix(data=train_x, label=train_y)
     model = xgb.train(params=params,
                       dtrain=d_train_global,
-                      n_thread=5,
                       num_boost_round=num_boost_round,
                       verbose_eval=False)
     return model
@@ -113,7 +112,6 @@ def personalized_modeling(pre_data, idx, x_test):
     my_logger.info(f"idx:{idx} | build time:{run_time}s")
 
 
-
 if __name__ == '__main__':
 
     start_idx = int(sys.argv[1])
@@ -153,7 +151,7 @@ if __name__ == '__main__':
     # start_idx = 0
     # end_idx = 20
     end_idx = final_idx if end_idx > final_idx else end_idx
-    my_logger.info(f"the idx range is: [{start_idx},{end_idx}]")
+    my_logger.warning(f"the idx range is: [{start_idx},{end_idx}]")
 
     # the number of selected train data
     len_split = int(train_x.shape[0] * select_ratio)
@@ -189,8 +187,13 @@ if __name__ == '__main__':
     collect()
 
     run_time = round(time.time() - start_time, 2)
-    my_logger.info(f"build all model need time:{run_time}s")
+    my_logger.warning(f"build all model need time: {run_time}s")
 
     # ----- save result -----
-    test_result_csv = os.path.join(WEIGHT_CSV_PATH, f'24h_transfer_xgb_test_result/0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
-    test_result.to_csv(test_result_csv, index=True)
+    try:
+        test_result_csv = os.path.join(WEIGHT_CSV_PATH, f'24h_transfer_xgb_test_result/0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
+        test_result.to_csv(test_result_csv, index=True)
+        my_logger.warning(f"save {test_result_csv} success!")
+    except Exception as err:
+        my_logger.error(err)
+        raise err
