@@ -21,22 +21,23 @@ import time
 from my_logger import MyLog
 
 
-def get_concat_result(file_name, file_flag):
+def get_concat_result(file_flag):
     concat_start = time.time()
     # 遍历文件夹
     all_files = os.listdir(SOURCE_PATH)
     all_result = pd.DataFrame()
-
+    count = 0
     for file in all_files:
         if file_flag in file:
+            count += 1
             result = pd.read_csv(os.path.join(SOURCE_PATH, file), index_col=False)
             result['proba'] = result['proba'].str.strip('[]').astype(np.float64)
             all_result = pd.concat([all_result, result], axis=0)
-            logger.info(f"the {file_flag} csv saved success!")
+            logger.info(f"find {file} csv !")
             # 合并后删除
-            # os.remove(os.path.join(SOURCE_PATH, file))
+            os.remove(os.path.join(SOURCE_PATH, file))
 
-    logger.info(f"after concat the result shape is: {all_result.shape}")
+    logger.info(f"find {count} csv and after concat the result shape is: {all_result.shape}")
     logger.info(f"concat time:  {time.time() - concat_start} s")
 
     try:
@@ -47,7 +48,7 @@ def get_concat_result(file_name, file_flag):
         raise err
 
 
-def cal_auc_result(file, flag):
+def cal_auc_result(file):
     result = pd.read_csv(os.path.join(SAVE_PATH, file))
     y_test = result['real']
     y_pred = result['proba']
@@ -55,20 +56,25 @@ def cal_auc_result(file, flag):
     logger.info(f"y_test shape: {y_test.shape}")
     logger.info(f"y_pred shape: {y_pred.shape}")
 
-    logger.warning(f"{flag} auc: {roc_auc_score(y_test, y_pred)}")
-    logger.warning("cal success!")
+    score = roc_auc_score(y_test, y_pred)
+    result_score_str = f"[{learned_metric_iteration}] : auc score - {score}"
+    with open(result_file, 'a+') as f:
+        f.write(result_score_str + "\n")
+        logger.warning(result_score_str)
+        logger.warning("cal and save success!")
 
 
 if __name__ == '__main__':
     SOURCE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_transfer_xgb_test_result/'
     SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/auc/'
     learned_metric_iteration = str(sys.argv[1])
+    result_file = r"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/auc/auc_result.txt"
 
     logger = MyLog().logger
 
-    flag = f"0009_{learned_metric_iteration}"
+    flag = f"0009_{learned_metric_iteration}_"
     # 保存文件名
-    file_name = f'{flag}_proba_tran_all.csv'
+    file_name = f'{flag}proba_tran_all.csv'
     # 先合并再计算auc
-    get_concat_result(file_name, flag)
-    cal_auc_result(file_name, flag)
+    get_concat_result(flag)
+    cal_auc_result(file_name)

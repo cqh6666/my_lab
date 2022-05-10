@@ -18,5 +18,15 @@ def my_worker():
     my_logger.info(use_per)
 
 
+def in_test():
+    a = ["111_", "222@", "333-"]
+    str_a = "0009_1_111"
+    flag = "111_"
+    if flag in str_a:
+        return True
+
+    return False
+
+
 if __name__ == '__main__':
-    my_worker()
+    print(in_test())
