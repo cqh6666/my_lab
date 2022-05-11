@@ -14,7 +14,6 @@ from my_logger import MyLog
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import sys
 from gc import collect
-import pickle
 warnings.filterwarnings('ignore')
 
 
@@ -28,7 +27,7 @@ def get_local_xgb_para():
         'colsample_bytree': 0.7,
         'eta': 0.05,
         'objective': 'binary:logistic',
-        'nthread': 1,
+        'nthread': xgb_thread_num,
         'verbosity': 0,
         'eval_metric': 'logloss',
         'seed': 998,
@@ -141,9 +140,12 @@ if __name__ == '__main__':
     m_sample_weight = 0.01
 
     # 不迁移的话设置为20+50
+    xgb_thread_num = 3
     xgb_boost_num = 70
     pool_nums = 20
     n_personal_model_each_iteration = 1000
+
+    my_logger.warning(f"[params] - xgb_thread_num:{xgb_thread_num}, xgb_bootst_num:{xgb_boost_num}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}")
 
     # ----- init weight -----
     if init_iteration == 0:

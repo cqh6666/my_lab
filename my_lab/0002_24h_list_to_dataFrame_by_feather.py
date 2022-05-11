@@ -16,6 +16,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool, shared_memory
+from my_logger import MyLog
 
 
 def get_encounter_id(idx, input_data, map_data, all_sample):
@@ -91,13 +92,6 @@ def get_lab(idx, input_data, input_t_time, map_data, all_sample):
 def get_med(idx, input_data, input_t_time, pre_day, map_data, all_sample):
     """
     we set days to AKI point distances as med values if non-exposure , we set NaN
-    :param idx:
-    :param input_data:
-    :param input_t_time:
-    :param pre_day:
-    :param map_data:
-    :param all_sample:
-    :return:
     """
     for m in range(len(input_data)):
         try:
@@ -139,13 +133,6 @@ def get_ccs(idx, input_data, input_t_time, map_data, all_sample):
 def get_px(idx, input_data, input_t_time, pre_day, map_data, all_sample):
     """
     we set days to AKI point distances as px values if non-procedure , we set NaN
-    :param idx:
-    :param input_data:
-    :param input_t_time:
-    :param pre_day:
-    :param map_data:
-    :param all_sample:
-    :return:
     """
     for m in range(len(input_data)):
         try:
@@ -165,12 +152,6 @@ def get_px(idx, input_data, input_t_time, pre_day, map_data, all_sample):
 def get_label(idx, labels, advance_day, map_data, all_sample):
     """
     Gets the eigenvalue corresponding to the subscript index
-    :param idx:
-    :param labels:
-    :param advance_day:
-    :param map_data:
-    :param all_sample:
-    :return:
     """
     day_index = map_data.index("days")
     value_index = map_data.index("AKI_label")
@@ -186,8 +167,18 @@ def get_label(idx, labels, advance_day, map_data, all_sample):
 
 
 def process_cur_sample(idx, cur_list_data, pre_day, map_data, shape_all_sample):
-    # use the shared_memory for all_sample
+    """
+    use the shared_memory for all_sample
+    :param idx: 每一行索引
+    :param cur_list_data: 每一行所有数据
+    :param pre_day: 提前天数（1->24h,2->48h）
+    :param map_data: 特征列表
+    :param shape_all_sample: all_sample的shape (rows,columns)
+    :return:
+    """
+    # 通过name读共享内存变量
     shared_all_sample = shared_memory.SharedMemory(name='all_sample')
+    # 写共享内存变量
     all_sample = np.ndarray(shape=shape_all_sample, dtype=np.float64, buffer=shared_all_sample.buf)
 
     # get patient_id, aki_label and six kinds of features by nested list
@@ -209,6 +200,9 @@ def process_cur_sample(idx, cur_list_data, pre_day, map_data, shape_all_sample):
 
 
 def get_discard_index(x):
+    """
+    去除无用信息 pre_time < 0
+    """
     if x is not None:
         throw_idx.append(x)
 
@@ -216,34 +210,41 @@ def get_discard_index(x):
 # ----------------------------------------- work space ------------------------------------------------------
 # how many days in advance to predict
 pre_day = 1
+# 提前小时
+pre_hour = pre_day * 24
 
-# load map data: list of feature name
+start_year = 2010
+end_year = 2018
+
+my_logger = MyLog().logger
+
+# load map data: list of feature name 获取特征名
 map_file_path = "/home/xzhang_sta/work/yuanborong/data/row_data/feature_dict_BDAI_map.pkl"
-with open(map_file_path, 'rb') as map_f:
-    map_data = ['encounter_id'] + joblib.load(map_f)
-    s_map_data = list(map_data)
-    del map_data
+s_map_data = joblib.load(map_file_path)
+# 增加 病人ID 一列
+s_map_data.insert(0, "encounter_id")
+# 特征总数量
+len_s_map_data = len(s_map_data)
 
-# traverse data of all years
-for year in range(2010, 2018 + 1):
+# traverse data of all years 所有年份的数据
+for year in range(start_year, end_year + 1):
     # init the total of samples whose stay was less than 1 day
     throw_idx = []
-    # set the input file and output file
+    # set the input file and output file 输入是list格式，输出是dataFrame格式
     string_list_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/yuanborong/data/row_data_encounterId/{year}_string2list.pkl"
-    save_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/{year}_24h_list2dataframe.feather"
+    save_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/{year}_{pre_hour}h_list2dataframe.feather"
 
     # 读取list格式的数据
-    with open(string_list_file_path, 'rb') as list_file:
-        list_data = joblib.load(list_file)
+    list_data = joblib.load(string_list_file_path)
 
     # indexes of samples needed
     len_list_data = len(list_data)
-    len_s_map_data = len(s_map_data)
+    my_logger.info(f"year:{year} | len_list_data:{len_list_data}")
 
     # init a variable to save all eligible cross-section sample 初始化数据集格式
     all_sample = np.zeros((len_list_data, len_s_map_data))
 
-    # create shared_memory for all_sample 创建共享内存变量
+    # create shared_memory for all_sample 创建共享内存变量 all_sample
     sm_all_sample = shared_memory.SharedMemory(name='all_sample', create=True, size=all_sample.nbytes)
     s_all_sample = np.ndarray(shape=all_sample.shape, dtype=np.float64, buffer=sm_all_sample.buf)
     s_all_sample[:, :] = all_sample[:, :]
@@ -264,8 +265,7 @@ for year in range(2010, 2018 + 1):
 
     # init result (have not abandon < 24h samples)  结果转化为dataFrame
     result = pd.DataFrame(s_all_sample)
-    print(f"-------- year: {year} ---------")
-    print("result dataframe shape before delete:", result.shape)
+    my_logger.info(f"year:{year} | result_shape_before_drop:{result.shape}")
     # s_map_data contains all names of feature
     result.columns = s_map_data
     # discard samples and transform numpy to dataframe
@@ -273,8 +273,8 @@ for year in range(2010, 2018 + 1):
     # reset index
     result.reset_index(inplace=True, drop=True)
 
-    print("delete samples:", len(throw_idx), throw_idx)
-    print("result dataframe shape:", result.shape)
+    my_logger.info(f"year:{year} | drop_numbers:{len(throw_idx)}")
+    my_logger.info(f"year:{year} | result_shape_after_drop:{result.shape}")
 
     # save cross-section dataframe as feather file
     result.to_feather(save_file_path)

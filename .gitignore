@@ -8,7 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-log/
+other_file/
 feather/
 build/
 develop-eggs/

@@ -14,7 +14,7 @@ __author__ = 'cqh'
 
 import pandas as pd
 
-csv_path = r"0006_xgb_global_feature_weight_importance_boost91_v0.csv"
+csv_path = r"other_file/0006_xgb_global_feature_weight_importance_boost91_v0.csv"
 print("===========================begin================================")
 
 data = pd.read_csv(csv_path)

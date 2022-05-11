@@ -14,7 +14,7 @@ __author__ = 'cqh'
 
 import pandas as pd
 
-PATH = "auc_result.txt"
+PATH = "../other_file/auc_result.txt"
 
 
 def get():

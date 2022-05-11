@@ -1,4 +1,4 @@
-#encoding=gbk
+# encoding=gbk
 """
 input:
     {year}_24h_list2dataframe.feather
@@ -22,6 +22,7 @@ my_logger = MyLog().logger
 feather_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.feather'
 csv_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.csv'
 pickle_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.pkl'
+
 
 def remap_feature_name(samples):
     """copy from BR senior"""
@@ -99,8 +100,9 @@ new_feature_name = pd.read_csv('/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/
 
 # ----- get remained feature through csv file -----
 # 读取经过缺失筛选后的特征集合
-remained_feature_name = pd.read_csv('/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/24h_999_remained_feature.csv',
-                                    header=None).squeeze("columns")
+remained_feature_name = pd.read_csv(
+    '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/24h_999_remained_feature.csv',
+    header=None).squeeze("columns")
 
 
 def run(year):
