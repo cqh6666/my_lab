@@ -74,7 +74,7 @@ if __name__ == '__main__':
     start_time2 = time.time()
     for i in range(len_list_data):
         pool2.apply_async(func=process_cur_sample2,
-                         args=(i, global_namespace,lock))
+                          args=(i, global_namespace, lock))
     pool2.close()
     pool2.join()
     my_logger.info(f"mult2 time:{time.time() - start_time2} s")
@@ -90,4 +90,3 @@ if __name__ == '__main__':
     my_logger.info(f"for time:{time.time() - start_time3} s")
     result3 = pd.DataFrame(all_sample3)
     my_logger.info(result3.describe())
-
