@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# encoding=gbk
 """
 -------------------------------------------------
    File Name:     get_some_samples
@@ -20,7 +20,7 @@ from my_logger import MyLog
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 from threading import Lock
 import os
-
+import sys
 
 def get_lab_and_unit(e_id, lab_input_data):
     """
@@ -37,7 +37,7 @@ def get_lab_and_unit(e_id, lab_input_data):
       ],
       ...
     ]
-    :param e_id: ç—…äººID
+    :param e_id: ²¡ÈËID
     :param lab_input_data:
     :return:
     """
@@ -59,7 +59,7 @@ def get_lab_and_unit(e_id, lab_input_data):
     if lab_detail_list is None:
         return
 
-    my_logger.info(f"encounter_id:{e_id} | len:{len(lab_detail_list)}")
+    # my_logger.info(f"encounter_id:{e_id} | len:{len(lab_detail_list)}")
     lab_detail_list_df = pd.DataFrame(lab_detail_list, columns=columns)
     global lab_all_sample_df
     global write_lock
@@ -77,7 +77,7 @@ def multi_thread_process():
     start_time = time.time()
     with ThreadPoolExecutor(max_workers=pool_nums) as executor:
         thread_list = []
-        for i in range(len(list_data)):
+        for i in range(select_len_list_data):
             encounter_id = list_data[i][0]
             lab_list_data = list_data[i][3]
             thread = executor.submit(get_lab_and_unit, encounter_id, lab_list_data)
@@ -96,24 +96,24 @@ def analysis_lab_unit():
 
     my_logger.info(f"shape: {lab_all_sample.shape}")
 
-    # æ‰¾åˆ°ä¸é‡å¤çš„lab_idåˆ—è¡¨
+    # ÕÒµ½²»ÖØ¸´µÄlab_idÁĞ±í
     lab_id_unique = lab_all_sample['lab_id'].unique()
     lab_id_unit_count_list = []
     for lab_id in lab_id_unique:
-        # lab_idå¯¹åº”çš„æ•°æ®
+        # lab_id¶ÔÓ¦µÄÊı¾İ
         lab_data_id = lab_all_sample.loc[lab_all_sample['lab_id'] == lab_id]
         lab_id_unit_count = [lab_id, lab_data_id['unit'].unique().size]
         lab_id_unit_count_list.append(lab_id_unit_count)
 
     count_lab_id_unit_df = pd.DataFrame(lab_id_unit_count_list, columns=('lab_id', 'unit_count'))
-    # é€‰å‡ºå‰10å¤šå•ä½æ•°é‡çš„labç‰¹å¾ID
+    # Ñ¡³öÇ°10¶àµ¥Î»ÊıÁ¿µÄlabÌØÕ÷ID
     lab_id_top_10 = count_lab_id_unit_df.sort_values(by=['unit_count'], ascending=False).head(10)['lab_id']
-    # å¾—åˆ°å‰10ä¸ªlabçš„å•ä½åˆ†å¸ƒ
+    # µÃµ½Ç°10¸ölabµÄµ¥Î»·Ö²¼
     lab_data_unit_result = {}
     for lab_id in lab_id_top_10:
-        # lab_idå¯¹åº”çš„æ•°æ®
+        # lab_id¶ÔÓ¦µÄÊı¾İ
         lab_data_id = lab_all_sample.loc[lab_all_sample['lab_id'] == lab_id]
-        # lab_idå¯¹åº”å•ä½åˆ†å¸ƒ
+        # lab_id¶ÔÓ¦µ¥Î»·Ö²¼
         lab_data_unit_count = lab_data_id['unit'].value_counts().to_frame().astype('float64').sort_values(by=['unit'],
                                                                                                           ascending=False)
         lab_data_unit_count['percent'] = lab_data_unit_count.div(lab_data_unit_count.sum())
@@ -125,18 +125,31 @@ def analysis_lab_unit():
     my_logger.warning(f"save to pkl success!")
 
 
+def get_result_by_pkl(pkl_path):
+    """×Öµä¸ñÊ½"""
+    result_dict = joblib.load(pkl_path)
+    return result_dict
+
+
 if __name__ == '__main__':
-    BASE_PATH = "D:\\lab\\other_file\\"
-    string_list_file_path = "D:\\lab\\other_file\\2016_string2list.pkl"
-    lab_csv_save_path = os.path.join(BASE_PATH, "lab_all_sample.csv")
-    lab_result_pkl_save_path = os.path.join(BASE_PATH, "lab_data_unit_result.pkl")
+    year = str(sys.argv[1])
+    BASE_PATH = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/analysis_lab_data/"
+    string_list_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/yuanborong/data/row_data_encounterId/{year}_string2list.pkl"
+    lab_csv_save_path = os.path.join(BASE_PATH, f"lab_unit_all_sample_{year}.csv")
+    lab_result_pkl_save_path = os.path.join(BASE_PATH, f"lab_unit_result_{year}.pkl")
     columns = ['lab_id', 'value', 'unit', 'day']
 
-    pool_nums = 10
+    pool_nums = 20
+    select_ratio = 1
 
     my_logger = MyLog().logger
+
     list_data = joblib.load(string_list_file_path)
-    # å…¬æœ‰å˜é‡
+    len_list_data = len(list_data)
+    select_len_list_data = int(len_list_data * select_ratio)
+    my_logger.info(f"year:{year} | select_len_list_data:{select_len_list_data}")
+
+    # ¹«ÓĞ±äÁ¿
     lab_all_sample_df = pd.DataFrame(columns=columns)
     write_lock = Lock()
     my_logger.warning("starting to process lab data and save to csv...")

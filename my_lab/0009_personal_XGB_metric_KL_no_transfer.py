@@ -34,7 +34,7 @@ def get_global_xgb_para():
         'tree_method': 'hist',
         'seed': 1001,
     }
-    num_boost_round = 50
+    num_boost_round = xgb_boost_num
     return params, num_boost_round
 
 
@@ -54,7 +54,7 @@ def get_local_xgb_para():
         'seed': 998,
         'tree_method': 'hist'
     }
-    num_boost_round = 50
+    num_boost_round = xgb_boost_num
     return params, num_boost_round
 
 
@@ -72,7 +72,7 @@ def get_global_xgb():
 def personalized_modeling(pre_data, idx, x_test):
     """build personal model for target sample from test datasets"""
 
-    personalized_modeling_start_time = time.time()
+    # personalized_modeling_start_time = time.time()
     similar_rank = pd.DataFrame()
 
     similar_rank['data_id'] = train_x.index.tolist()
@@ -93,11 +93,9 @@ def personalized_modeling(pre_data, idx, x_test):
     d_train_local = xgb.DMatrix(fit_train, label=select_train_y, weight=sample_ki)
     params, num_boost_round = get_local_xgb_para()
 
-    # use transform
     xgb_local = xgb.train(params=params,
                           dtrain=d_train_local,
                           num_boost_round=num_boost_round,
-                          xgb_model=xgb_model,
                           verbose_eval=False)
 
     d_test_local = xgb.DMatrix(fit_test)
@@ -108,8 +106,8 @@ def personalized_modeling(pre_data, idx, x_test):
     # p_weight.loc[idx, :] = xgb_local.get_score(importance_type='weight')
     global_lock.release()
 
-    run_time = round(time.time() - personalized_modeling_start_time, 2)
-    my_logger.info(f"idx:{idx} | build time:{run_time}s")
+    # run_time = round(time.time() - personalized_modeling_start_time, 2)
+    # my_logger.info(f"idx:{idx} | build time:{run_time}s")
 
 
 if __name__ == '__main__':
@@ -122,7 +120,7 @@ if __name__ == '__main__':
     # read data
     # 根路径
     ROOT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/'
-    WEIGHT_CSV_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/'
+    WEIGHT_CSV_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_no_transfer_psm'
 
     # 训练集的X和Y
     train_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_x_data.feather')
@@ -130,10 +128,8 @@ if __name__ == '__main__':
     test_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_test_x_data.feather')
     test_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_test_y_data.feather')
 
-    # 0008_24h_{iteration_idx}_feature_weight_initboost91_localboost{xgb_boost_num}_mt.csv 读取迭代了k次的特征权重csv文件
-    feature_importance_file = os.path.join(WEIGHT_CSV_PATH, f'0008_24h_{learned_metric_iteration}_feature_weight_initboost91_localboost50_mt.csv')
-    # 迁移模型
-    xgb_model_file = '/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/pg/global_model/0006_24h_xgb_glo4_div1_snap1_rm1_miss2_norm1.pkl'
+    # 读取迭代了k次的特征权重csv文件
+    feature_importance_file = os.path.join(WEIGHT_CSV_PATH, f'0008_24h_{learned_metric_iteration}_feature_weight_initboost20_localboost70_mt.csv')
 
     train_x = pd.read_feather(train_data_x_file)
     train_y = pd.read_feather(train_data_y_file)['Label']
@@ -144,15 +140,15 @@ if __name__ == '__main__':
 
     # personal para setting
     xgb_thread_num = 2
+    xgb_boost_num = 70
     select_ratio = 0.1
     m_sample_weight = 0.01
-    n_thread = 20
+    pool_nums = 20
 
     final_idx = test_x.shape[0]
-    # start_idx = 0
-    # end_idx = 20
     end_idx = final_idx if end_idx > final_idx else end_idx
-    my_logger.warning(f"the idx range is: [{start_idx},{end_idx}]")
+
+    my_logger.warning(f"[params] - xgb_thread_num:{xgb_thread_num}, xgb_boost_num:{xgb_boost_num}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, learned_iter:{learned_metric_iteration}")
 
     # the number of selected train data
     len_split = int(train_x.shape[0] * select_ratio)
@@ -167,13 +163,10 @@ if __name__ == '__main__':
     # get thread lock
     global_lock = threading.Lock()
 
-    # get global xgb model to transfer learning
-    xgb_model = pickle.load(open(xgb_model_file, "rb"))
-
     start_time = time.time()
     # init thread list
     thread_list = []
-    pool = ThreadPoolExecutor(max_workers=n_thread)
+    pool = ThreadPoolExecutor(max_workers=pool_nums)
     # build personalized model for each test sample
     for test_idx in range(start_idx, end_idx):
         pre_data_select = test_x.loc[test_idx, :]
@@ -192,7 +185,7 @@ if __name__ == '__main__':
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(WEIGHT_CSV_PATH, f'24h_transfer_xgb_test_result/0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
+        test_result_csv = os.path.join(WEIGHT_CSV_PATH, f'test_result/0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
         test_result.to_csv(test_result_csv, index=True)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:
