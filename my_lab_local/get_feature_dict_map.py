@@ -26,5 +26,5 @@ df.to_csv(save_path, index=False, header=0)
 
 data = pd.read_csv(save_path, header=None)
 data_list = data.values.tolist() # [ [] [] [] [] ]
-data_list_2 = data.squeeze().tolist() # [ .. ]
+data_list_2 = data.squeeze().tolist()
 

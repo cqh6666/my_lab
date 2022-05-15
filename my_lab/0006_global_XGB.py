@@ -87,7 +87,7 @@ if __name__ == '__main__':
     # 自定义日志
     my_logger = MyLog().logger
 
-    num_boost = 20
+    num_boost = 100
     pre_hour = 24
     key_component = '24h_all_999_norm_miss'
 

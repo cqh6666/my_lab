@@ -28,7 +28,7 @@ def get_local_xgb_para():
         'colsample_bytree': 0.7,
         'eta': 0.05,
         'objective': 'binary:logistic',
-        'nthread': 1,
+        'nthread': n_thread,
         'verbosity': 0,
         'eval_metric': 'logloss',
         'seed': 998,
@@ -47,7 +47,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     :param X_test: dataFrame格式的目标患者特征集
     :return:
     """
-    # lsm_start_time = time.time()
+    lsm_start_time = time.time()
 
     similar_rank = pd.DataFrame()
 
@@ -99,34 +99,28 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     finally:
         lock.release()
 
-    # run_time = round(time.time() - lsm_start_time, 2)
-    # current_thread = threading.current_thread().getName()
-    # my_logger.info(
-    #     f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
+    run_time = round(time.time() - lsm_start_time, 2)
+    current_thread = threading.current_thread().getName()
+    my_logger.info(
+        f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
 
 
 if __name__ == '__main__':
 
     # 根路径
-    ROOT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/'
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
+    XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
+    PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_transfer_psm/'
+
     # 训练集的X和Y
-    train_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_x_data.feather')
-    train_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_y_data.feather')
-
-    # 保存路径
-    SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/'
-
-    # 迁移模型
-    xgb_model_file = '/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/pg/global_model/0006_24h_xgb_glo4_div1_snap1_rm1_miss2_norm1.pkl'
+    train_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+    train_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
 
     # ----- work space -----
     # 引入自定义日志类
     my_logger = MyLog().logger
-
-    # ----- get data and init weight ----
-    train_x = pd.read_feather(train_data_x_file)
-    train_y = pd.read_feather(train_data_y_file)['Label']
-    xgb_model = pickle.load(open(xgb_model_file, "rb"))
 
     # ----- similarity learning para -----
     # last and current iteration
@@ -140,24 +134,30 @@ if __name__ == '__main__':
     regularization_c = 0.05
     m_sample_weight = 0.01
 
+    n_thread = 2
+    # 做迁移时才会有这个全局模型参数
+    glo_tl_boost_num = 20
     xgb_boost_num = 50
-    pool_nums = 25
+    pool_nums = 20
     n_personal_model_each_iteration = 1000
 
-    # ----- init weight -----
+    # 迁移模型
+    xgb_model_file = os.path.join(XGB_MODEL_PATH, f"0006_xgb_global_24h_all_999_norm_miss_boost{glo_tl_boost_num}.pkl")
+    xgb_model = pickle.load(open(xgb_model_file, "rb"))
+
+    my_logger.warning(
+        f"[params] - xgb_thread_num:{n_thread}, xgb_bootst_num:{xgb_boost_num}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}")
+
+    # ----- init weight  | dataFrame 格式，有header行，没index索引列-----
     if init_iteration == 0:
-        # dataframe -> series
-        file_name = '0008_24h_xgb_weight_glo2_div1_snap1_rm1_miss2_norm1.csv'
-        normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name), index_col=0)
+        # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
+        file_name = '0006_xgb_global_feature_weight_boost100.csv'
+        normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
     else:
-        file_name = f'0008_24h_{init_iteration}_feature_weight_initboost91_localboost{xgb_boost_num}_mt.csv'
-        normalize_weight = pd.read_csv(os.path.join(SAVE_PATH, file_name))
+        file_name = f'0008_24h_{init_iteration}_feature_weight_gtlboost{glo_tl_boost_num}_localboost{xgb_boost_num}.csv'
+        normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
 
-    # my_logger.info(f"train_x:{train_x.shape} | train_y:{train_y.shape} | normalize_weight:{normalize_weight.shape}")
-
-    # 写锁
     lock = threading.Lock()
-
     my_logger.warning("start iteration ... ")
 
     # ----- iteration -----
@@ -217,7 +217,7 @@ if __name__ == '__main__':
         new_ki = []
         risk_gap = [real - pred for real, pred in zip(list(iteration_y), list(all_error))]
         # 具有单列或单行的数据被Squeeze为一个Series。
-        for idx, value in enumerate(normalize_weight.squeeze('columns')):
+        for idx, value in enumerate(normalize_weight.squeeze()):
             features_x = list(iteration_data.iloc[:, idx])
             plus_list = [a * b for a, b in zip(risk_gap, features_x)]
             new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
@@ -230,8 +230,8 @@ if __name__ == '__main__':
 
         try:
             # if iteration_idx % step == 0:
-            file_name = f'0008_24h_{iteration_idx}_feature_weight_initboost91_localboost{xgb_boost_num}_mt.csv'
-            normalize_weight.to_csv(os.path.join(SAVE_PATH, file_name), index=False)
+            file_name = f'0008_24h_{iteration_idx}_feature_weight_gtlboost{glo_tl_boost_num}_localboost{xgb_boost_num}.csv'
+            normalize_weight.to_csv(os.path.join(PSM_SAVE_PATH, file_name), index=False)
             my_logger.warning(f"iter idx: {iteration_idx} | save {file_name} success!")
         except Exception as err:
             my_logger.error(f"iter idx: {iteration_idx} | save {file_name} error!")

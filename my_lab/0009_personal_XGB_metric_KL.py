@@ -119,8 +119,6 @@ if __name__ == '__main__':
     learned_metric_iteration = str(sys.argv[3])
 
     # ----- work space -----
-    # read data
-    # ¸ùÂ·¾¶
     ROOT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/'
     WEIGHT_CSV_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/'
 
