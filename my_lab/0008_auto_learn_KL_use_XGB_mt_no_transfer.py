@@ -158,29 +158,6 @@ if __name__ == '__main__':
 
     # my_logger.info(f"train_x:{train_x.shape} | train_y:{train_y.shape} | normalize_weight:{normalize_weight.shape}")
 
-    last_idx = list(range(train_x.shape[0]))
-    shuffle(last_idx)
-
-    last_x = train_x.loc[last_idx, :]
-    last_x.reset_index(drop=True, inplace=True)
-    last_y = train_y.loc[last_idx]
-    last_y.reset_index(drop=True, inplace=True)
-
-    select_x = last_x.loc[:n_personal_model_each_iteration - 1, :]
-    select_x.reset_index(drop=True, inplace=True)
-    select_y = last_y.loc[:n_personal_model_each_iteration - 1]
-    select_y.reset_index(drop=True, inplace=True)
-
-    train_rank_x = last_x.loc[n_personal_model_each_iteration - 1:, :].copy()
-    train_rank_x.reset_index(drop=True, inplace=True)
-    train_rank_y = last_y.loc[n_personal_model_each_iteration - 1:].copy()
-    train_rank_y.reset_index(drop=True, inplace=True)
-
-    len_split = int(train_rank_x.shape[0] * select_rate)
-
-    # [0,1,2,...,n]
-    # build n_personal_model_each_iteration personal xgb
-
     # Ð´Ëø
     lock = threading.Lock()
 
@@ -189,6 +166,25 @@ if __name__ == '__main__':
     # ----- iteration -----
     # one iteration includes 1000 personal models
     for iteration_idx in range(cur_iteration, cur_iteration + step):
+        last_idx = list(range(train_x.shape[0]))
+        shuffle(last_idx)
+
+        last_x = train_x.loc[last_idx, :]
+        last_x.reset_index(drop=True, inplace=True)
+        last_y = train_y.loc[last_idx]
+        last_y.reset_index(drop=True, inplace=True)
+
+        select_x = last_x.loc[:n_personal_model_each_iteration - 1, :]
+        select_x.reset_index(drop=True, inplace=True)
+        select_y = last_y.loc[:n_personal_model_each_iteration - 1]
+        select_y.reset_index(drop=True, inplace=True)
+
+        train_rank_x = last_x.loc[n_personal_model_each_iteration - 1:, :].copy()
+        train_rank_x.reset_index(drop=True, inplace=True)
+        train_rank_y = last_y.loc[n_personal_model_each_iteration - 1:].copy()
+        train_rank_y.reset_index(drop=True, inplace=True)
+
+        len_split = int(train_rank_x.shape[0] * select_rate)
 
         iteration_data = pd.DataFrame(index=range(n_personal_model_each_iteration), columns=train_x.columns)
         iteration_y = pd.Series(index=range(n_personal_model_each_iteration))

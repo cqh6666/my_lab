@@ -31,8 +31,8 @@ def collect_specified_features_to_normalize():
 
 def normalize_all_samples():
     """
-    normalize specified features for all samples
     对一些特殊特征进行标准化所有样本
+    normalize specified features for all samples
     :return:
     """
     all_sample = pd.read_feather('/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.feather')

@@ -1,4 +1,4 @@
-#encoding=gbk
+# encoding=gbk
 """
 input:
     {year}_24h_dataframe_999_feature_normalize.feather
@@ -10,47 +10,49 @@ output:
 """
 import pandas as pd
 from sklearn.model_selection import train_test_split
+import os
+from my_logger import MyLog
 
-SOURCE_FILE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_normalize.feather'
 
-
-def get_data_from_feather_to_save():
-    all_samples = pd.read_feather(SOURCE_FILE_PATH)
+def get_data_from_feather_to_save(hour=24, test_size=0.15):
+    load_data_file = os.path.join(SOURCE_FILE_PATH, f"all_{hour}h_norm_dataframe_999_miss_medpx_max2dist.feather")
+    all_samples = pd.read_feather(load_data_file)
 
     all_samples_y = all_samples['Label']
     all_samples_x = all_samples.drop(['ID', 'Label'], axis=1)
 
-    x_train, x_test, y_train, y_test = train_test_split(all_samples_x, all_samples_y, test_size=0.15)
+    x_train, x_test, y_train, y_test = train_test_split(all_samples_x, all_samples_y, test_size=test_size)
 
-    print("-------------- result ---------------")
-    print("x_train shape:", x_train.shape)
-    print("x_test shape:", x_test.shape)
-    print("y_train shape:", y_train.shape)
-    print("y_test shape:", y_test.shape)
-    print("--------------  end  ----------------")
+    my_logger.info(f"x_train shape: {x_train.shape} | y_train_shape: {y_train.shape}")
+    my_logger.info(f"x_test_shape: {x_test.shape} | y_test_shape: {y_test.shape}")
 
     # save feather
     save_dataFrame_to_feather(x_train, y_train, "train")
     save_dataFrame_to_feather(x_test, y_test, "test")
 
-    print("save to feather success!")
 
-
-def save_dataFrame_to_feather(x_data, y_data, file_name):
+def save_dataFrame_to_feather(x_data, y_data, file_flag, hour=24):
     """
     将训练集X,Y保存为feather
+    :param hour:
     :param x_data:
     :param y_data:
-    :param file_name:
+    :param file_flag:
     :return:
     """
     x_data.reset_index(drop=True, inplace=True)
     y_data.reset_index(drop=True, inplace=True)
-    x_data.to_feather(
-        f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/24h_all_999_normalize_{file_name}_x_data.feather')
-    y_data.to_frame(name='Label').to_feather(
-        f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/24h_all_999_normallize_{file_name}_y_data.feather')
+    load_x_file = os.path.join(SOURCE_FILE_PATH, f"all_x_{file_flag}_{hour}h_norm_dataframe_999_miss_medpx_max2dist.feather")
+    load_y_file = os.path.join(SOURCE_FILE_PATH, f"all_y_{file_flag}_{hour}h_norm_dataframe_999_miss_medpx_max2dist.feather")
+    x_data.to_feather(load_x_file)
+    y_data.to_frame(name='Label').to_feather(load_y_file)
+
+    my_logger.info(f"save x_{file_flag} file - [{load_x_file}]")
+    my_logger.info(f"save y_{file_flag} file - [{load_y_file}]")
 
 
 if __name__ == '__main__':
-    get_data_from_feather_to_save()
+    pre_hour = 24
+    SOURCE_FILE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h/'
+    my_logger = MyLog().logger
+    get_data_from_feather_to_save(pre_hour)
