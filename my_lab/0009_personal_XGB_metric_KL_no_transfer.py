@@ -116,10 +116,11 @@ if __name__ == '__main__':
     end_idx = int(sys.argv[2])
     learned_metric_iteration = str(sys.argv[3])
 
+    xgb_boost_num = 70
     # ----- work space -----
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
     XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
-    PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_transfer_psm/'
+    PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_no_transfer_psm/'
     TEST_RESULT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_no_transfer/'
 
     # 训练集的X和Y
@@ -133,15 +134,13 @@ if __name__ == '__main__':
         os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
 
     # 读取迭代了k次的特征权重csv文件
-    weight_file_name = f'0008_24h_{learned_metric_iteration}_feature_weight_initboost20_localboost70_no_transfer.csv'
+    weight_file_name = f'0008_24h_{learned_metric_iteration}_feature_weight_localboost{xgb_boost_num}_no_transfer.csv'
     feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
     feature_weight = pd.read_csv(feature_importance_file)
     feature_weight = feature_weight.squeeze().tolist()
-    my_logger.info(f"the len of feature weight: {len(feature_weight)}")
 
     # personal para setting
     xgb_thread_num = 2
-    xgb_boost_num = 70
     select_ratio = 0.1
     m_sample_weight = 0.01
     pool_nums = 20

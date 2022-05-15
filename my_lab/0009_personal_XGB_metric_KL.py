@@ -118,27 +118,32 @@ if __name__ == '__main__':
     end_idx = int(sys.argv[2])
     learned_metric_iteration = str(sys.argv[3])
 
+    xgb_boost_num = 50
     # ----- work space -----
-    ROOT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/'
-    WEIGHT_CSV_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/'
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
+    XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
+    PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_transfer_psm/'
+    TEST_RESULT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_transfer/'
 
     # 训练集的X和Y
-    train_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_x_data.feather')
-    train_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_train_y_data.feather')
-    test_data_x_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_test_x_data.feather')
-    test_data_y_file = os.path.join(ROOT_PATH, '24h_all_999_normalize_test_y_data.feather')
+    train_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+    train_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+    test_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+    test_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
 
-    # 0008_24h_{iteration_idx}_feature_weight_initboost91_localboost{xgb_boost_num}_mt.csv 读取迭代了k次的特征权重csv文件
-    feature_importance_file = os.path.join(WEIGHT_CSV_PATH, f'0008_24h_{learned_metric_iteration}_feature_weight_initboost91_localboost50_mt.csv')
     # 迁移模型
-    xgb_model_file = '/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/pg/global_model/0006_24h_xgb_glo4_div1_snap1_rm1_miss2_norm1.pkl'
+    glo_tl_boost_num = 20
+    xgb_model_file = os.path.join(XGB_MODEL_PATH, f"0006_xgb_global_24h_all_999_norm_miss_boost{glo_tl_boost_num}.pkl")
+    xgb_model = pickle.load(open(xgb_model_file, "rb"))
 
-    train_x = pd.read_feather(train_data_x_file)
-    train_y = pd.read_feather(train_data_y_file)['Label']
-    test_x = pd.read_feather(test_data_x_file)
-    test_y = pd.read_feather(test_data_y_file)['Label']
+    weight_file_name = f'0008_24h_{learned_metric_iteration}_feature_weight_gtlboost{glo_tl_boost_num}_localboost{xgb_boost_num}.csv'
+    feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
     feature_weight = pd.read_csv(feature_importance_file)
-    feature_weight = feature_weight.iloc[:, 0].tolist()
+    feature_weight = feature_weight.squeeze().tolist()
 
     # personal para setting
     xgb_thread_num = 2
@@ -190,7 +195,7 @@ if __name__ == '__main__':
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(WEIGHT_CSV_PATH, f'24h_transfer_xgb_test_result/0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
+        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
         test_result.to_csv(test_result_csv, index=True)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:
