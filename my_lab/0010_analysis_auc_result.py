@@ -13,19 +13,18 @@
 __author__ = 'cqh'
 
 import pandas as pd
+import matplotlib.pyplot as plt
 
-PATH = "../other_file/auc_result.txt"
-
-
-def get():
+def get_auc():
     with open(PATH, "r") as f:
-        iter = []
+        iter_idx = []
         auc = []
         for line in f.readlines():
-            iter.append(line[line.index('[') + 1:line.index(']')])
-            auc.append(line[line.index('-') + 1:].strip())
+            line_str = line.split(',')
+            iter_idx.append(line_str[0])
+            auc.append(line_str[1])
 
-        data = {'iter': iter, 'auc': auc}
+        data = {'iter': iter_idx, 'auc': auc}
         df = pd.DataFrame(data)
         df['iter'] = df['iter'].astype(int)
         df['auc'] = df['auc'].astype(float)
@@ -33,5 +32,14 @@ def get():
         return df
 
 
+def plot_auc(all_auc_result):
+    all_auc_result.sort_values(by=['iter'], inplace=True)
+    all_auc_result.plot(x='iter', y='auc')
+    plt.show()
+
+
 if __name__ == '__main__':
-    get()
+    PATH = "../other_file/auc_result.txt"
+
+    result = get_auc()
+    plot_auc(result)

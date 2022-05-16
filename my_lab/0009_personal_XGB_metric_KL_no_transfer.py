@@ -117,9 +117,15 @@ if __name__ == '__main__':
     learned_metric_iteration = str(sys.argv[3])
 
     xgb_boost_num = 70
+    xgb_thread_num = 2
+    select_ratio = 0.1
+    m_sample_weight = 0.01
+    pool_nums = 20
+
     # ----- work space -----
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # ÑµÁ·¼¯µÄXºÍY
     XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
+
     PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_no_transfer_psm/'
     TEST_RESULT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_no_transfer/'
 
@@ -139,16 +145,13 @@ if __name__ == '__main__':
     feature_weight = pd.read_csv(feature_importance_file)
     feature_weight = feature_weight.squeeze().tolist()
 
-    # personal para setting
-    xgb_thread_num = 2
-    select_ratio = 0.1
-    m_sample_weight = 0.01
-    pool_nums = 20
-
     final_idx = test_x.shape[0]
     end_idx = final_idx if end_idx > final_idx else end_idx
 
-    my_logger.warning(f"[params] - xgb_thread_num:{xgb_thread_num}, xgb_boost_num:{xgb_boost_num}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, learned_iter:{learned_metric_iteration}")
+    my_logger.warning(
+        f"[xgb  params] - xgb_thread_num:{xgb_thread_num},  xgb_boost_num:{xgb_boost_num}")
+    my_logger.warning(
+        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, ")
 
     # the number of selected train data
     len_split = int(train_x.shape[0] * select_ratio)
@@ -181,12 +184,12 @@ if __name__ == '__main__':
     collect()
 
     run_time = round(time.time() - start_time, 2)
-    my_logger.warning(f"build all model need time: {run_time}s")
+    my_logger.warning(f"build all model need time: {run_time} s")
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
-        test_result.to_csv(test_result_csv, index=True)
+        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_proba_no_transfer.csv')
+        test_result.to_csv(test_result_csv, index=False)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:
         my_logger.error(err)

@@ -57,7 +57,7 @@ def cal_auc_result(file):
     logger.info(f"y_pred shape: {y_pred.shape}")
 
     score = roc_auc_score(y_test, y_pred)
-    result_score_str = f"[{learned_metric_iteration}] : auc score - {score}"
+    result_score_str = f"{learned_metric_iteration},{score}"
     with open(result_file, 'a+') as f:
         f.write(result_score_str + "\n")
         logger.warning(result_score_str)
@@ -66,18 +66,18 @@ def cal_auc_result(file):
 
 if __name__ == '__main__':
     # 分批量（每1500个）的预测概率csv文件夹
-    SOURCE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_no_transfer_psm/test_result/'
+    SOURCE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_no_transfer/'
     # 多批量整合而成的csv文件
-    SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_no_transfer_psm/auc/'
+    SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_auc_no_transfer/'
     # 保存auc结果的txt文件
     result_file = os.path.join(SAVE_PATH, "no_transfer_auc_result.txt")
 
     learned_metric_iteration = str(sys.argv[1])
 
     logger = MyLog().logger
-    flag = f"0009_{learned_metric_iteration}_"
+    flag = f"0010_{learned_metric_iteration}_"
     # 保存文件名
-    file_name = f'{flag}no_transfer_proba_tran_all.csv'
+    file_name = f'{flag}_all_proba_no_transfer.csv'
     # 先合并再计算auc
     get_concat_result(flag)
     cal_auc_result(file_name)

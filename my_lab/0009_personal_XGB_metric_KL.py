@@ -108,8 +108,8 @@ def personalized_modeling(pre_data, idx, x_test):
     # p_weight.loc[idx, :] = xgb_local.get_score(importance_type='weight')
     global_lock.release()
 
-    run_time = round(time.time() - personalized_modeling_start_time, 2)
-    my_logger.info(f"idx:{idx} | build time:{run_time}s")
+    # run_time = round(time.time() - personalized_modeling_start_time, 2)
+    # my_logger.info(f"idx:{idx} | build time:{run_time}s")
 
 
 if __name__ == '__main__':
@@ -118,10 +118,17 @@ if __name__ == '__main__':
     end_idx = int(sys.argv[2])
     learned_metric_iteration = str(sys.argv[3])
 
+    xgb_thread_num = 2
+    select_ratio = 0.1
+    m_sample_weight = 0.01
+    pool_nums = 20
     xgb_boost_num = 50
+    glo_tl_boost_num = 20
+
     # ----- work space -----
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
     XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
+
     PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_transfer_psm/'
     TEST_RESULT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_transfer/'
 
@@ -136,26 +143,23 @@ if __name__ == '__main__':
         os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
 
     # 迁移模型
-    glo_tl_boost_num = 20
     xgb_model_file = os.path.join(XGB_MODEL_PATH, f"0006_xgb_global_24h_all_999_norm_miss_boost{glo_tl_boost_num}.pkl")
     xgb_model = pickle.load(open(xgb_model_file, "rb"))
 
+    # 读取相似性度量
     weight_file_name = f'0008_24h_{learned_metric_iteration}_feature_weight_gtlboost{glo_tl_boost_num}_localboost{xgb_boost_num}.csv'
     feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
     feature_weight = pd.read_csv(feature_importance_file)
     feature_weight = feature_weight.squeeze().tolist()
 
-    # personal para setting
-    xgb_thread_num = 2
-    select_ratio = 0.1
-    m_sample_weight = 0.01
-    n_thread = 20
-
     final_idx = test_x.shape[0]
-    # start_idx = 0
-    # end_idx = 20
+    # 不得大过最大值
     end_idx = final_idx if end_idx > final_idx else end_idx
-    my_logger.warning(f"the idx range is: [{start_idx},{end_idx}]")
+
+    my_logger.warning(
+        f"[xgb  params] - xgb_thread_num:{xgb_thread_num},  xgb_boost_num:{xgb_boost_num}, glo_tl_boost_num：{glo_tl_boost_num}")
+    my_logger.warning(
+        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, ")
 
     # the number of selected train data
     len_split = int(train_x.shape[0] * select_ratio)
@@ -167,16 +171,12 @@ if __name__ == '__main__':
     # init p_weight to save weight importance for each personalized model
     # p_weight = pd.DataFrame(index=test_result.index.tolist(), columns=test_x.columns.tolist())
 
-    # get thread lock
     global_lock = threading.Lock()
-
-    # get global xgb model to transfer learning
-    xgb_model = pickle.load(open(xgb_model_file, "rb"))
 
     start_time = time.time()
     # init thread list
     thread_list = []
-    pool = ThreadPoolExecutor(max_workers=n_thread)
+    pool = ThreadPoolExecutor(max_workers=pool_nums)
     # build personalized model for each test sample
     for test_idx in range(start_idx, end_idx):
         pre_data_select = test_x.loc[test_idx, :]
@@ -191,12 +191,12 @@ if __name__ == '__main__':
     collect()
 
     run_time = round(time.time() - start_time, 2)
-    my_logger.warning(f"build all model need time: {run_time}s")
+    my_logger.warning(f"build all model need time: {run_time} s")
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_proba_tran_{start_idx}_{end_idx}.csv')
-        test_result.to_csv(test_result_csv, index=True)
+        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_proba_transfer.csv')
+        test_result.to_csv(test_result_csv, index=False)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:
         my_logger.error(err)
