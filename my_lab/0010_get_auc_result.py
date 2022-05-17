@@ -22,39 +22,49 @@ from my_logger import MyLog
 
 
 def get_concat_result(file_flag):
+    """
+    :param file_flag: 文件标志，找到同一个迭代次数的所有csv
+    :return:
+    """
     concat_start = time.time()
     # 遍历文件夹
-    all_files = os.listdir(SOURCE_PATH)
+    all_files = os.listdir(CSV_RESULT_PATH)
     all_result = pd.DataFrame()
     count = 0
     for file in all_files:
         if file_flag in file:
             count += 1
-            result = pd.read_csv(os.path.join(SOURCE_PATH, file), index_col=False)
+            result = pd.read_csv(os.path.join(CSV_RESULT_PATH, file), index_col=False)
             result['proba'] = result['proba'].str.strip('[]').astype(np.float64)
             all_result = pd.concat([all_result, result], axis=0)
-            logger.info(f"find {file} csv !")
+            logger.info(f"load {file} csv and concat success!")
             # 合并后删除
-            os.remove(os.path.join(SOURCE_PATH, file))
+            # os.remove(os.path.join(CSV_RESULT_PATH, file))
 
-    logger.info(f"find {count} csv and after concat the result shape is: {all_result.shape}")
+    logger.info(f"find {count} csv and all the result shape is: {all_result.shape}")
     logger.info(f"concat time:  {time.time() - concat_start} s")
-
+    if all_result.shape[0] == 0:
+        logger.error(f"find no csv result...")
+        return None
     try:
-        all_result.to_csv(os.path.join(SAVE_PATH, file_name))
-        logger.warning(f"concat all result to csv {file_name} success!")
+        all_result.to_csv(all_result_file)
+        logger.warning(f"concat all result to csv {all_result_file} success!")
+        return all_result
     except Exception as err:
         logger.error(err)
         raise err
 
 
-def cal_auc_result(file):
-    result = pd.read_csv(os.path.join(SAVE_PATH, file))
+def cal_auc_result():
+    """
+    读取csv文件，分别存有real和proba列，计算auc结果
+    :return:
+    """
+    result = pd.read_csv(all_result_file)
     y_test = result['real']
     y_pred = result['proba']
 
-    logger.info(f"y_test shape: {y_test.shape}")
-    logger.info(f"y_pred shape: {y_pred.shape}")
+    logger.info(f"result shape: {result.shape}")
 
     score = roc_auc_score(y_test, y_pred)
     result_score_str = f"{learned_metric_iteration},{score}"
@@ -64,20 +74,59 @@ def cal_auc_result(file):
         logger.warning("cal auc and save success!")
 
 
-if __name__ == '__main__':
-    # 分批量（每1500个）的预测概率csv文件夹
-    SOURCE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_no_transfer/'
-    # 多批量整合而成的csv文件
-    SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_auc_no_transfer/'
-    # 保存auc结果的txt文件
-    result_file = os.path.join(SAVE_PATH, "no_transfer_auc_result.txt")
+def process_and_plot_result():
+    """
+    处理auc结果 并绘制成图像
+    :return:
+    """
+    with open(AUC_RESULT_PATH, "r") as f:
+        iter_idx = []
+        auc = []
+        for line in f.readlines():
+            line_str = line.split(',')
+            iter_idx.append(line_str[0])
+            auc.append(line_str[1])
 
+        data = {'iter': iter_idx, 'auc': auc}
+        all_auc_result = pd.DataFrame(data)
+        all_auc_result['iter'] = all_auc_result['iter'].astype(int)
+        all_auc_result['auc'] = all_auc_result['auc'].astype(float)
+
+    all_auc_result.sort_values(by=['iter'], inplace=True)
+    ax = all_auc_result.plot(x='iter', y='auc')
+    fig = ax.get_figure()
+    png_file_name = os.path.join(AUC_RESULT_PATH, f"24h_auc_result_{transfer_flag}.png")
+    fig.savefig(png_file_name)
+    logger.info("save auc result to png success!")
+
+
+if __name__ == '__main__':
     learned_metric_iteration = str(sys.argv[1])
+    # 1 代表 迁移 ， 0 代表 不迁移
+    is_transfer = int(sys.argv[2])
 
     logger = MyLog().logger
-    flag = f"0010_{learned_metric_iteration}_"
-    # 保存文件名
-    file_name = f'{flag}_all_proba_no_transfer.csv'
+
+    # 是否迁移，对应不同路径
+    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
+    CSV_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_{transfer_flag}/'
+    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_auc_{transfer_flag}/'
+
+    # 根据迭代次数查找到所有的分批量（每1500个）的预测概率csv文件夹
+    flag = f"0009_{learned_metric_iteration}_"
+    # 多批量整合而成的整体csv文件名
+    all_prob_csv_name = f'{flag}all_proba_{transfer_flag}.csv'
+    # 将最终的auc结果进行保存
+    result_file = os.path.join(AUC_RESULT_PATH, f"24h_auc_result_{transfer_flag}.txt")
+
     # 先合并再计算auc
-    get_concat_result(flag)
-    cal_auc_result(file_name)
+    all_result_file = os.path.join(AUC_RESULT_PATH, all_prob_csv_name)
+    if os.path.exists(all_result_file):
+        logger.warning(f"exist {all_result_file}, done!")
+    else:
+        get_concat_result(flag)
+        cal_auc_result()
+
+    # ================================ end ===================================
+    # 等结果够多才进行绘制图像
+    # process_and_plot_result()

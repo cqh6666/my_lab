@@ -47,7 +47,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     :param X_test: dataFrame格式的目标患者特征集
     :return:
     """
-    lsm_start_time = time.time()
+    # lsm_start_time = time.time()
 
     similar_rank = pd.DataFrame()
 
@@ -99,10 +99,10 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     finally:
         lock.release()
 
-    run_time = round(time.time() - lsm_start_time, 2)
-    current_thread = threading.current_thread().getName()
-    my_logger.info(
-        f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
+    # run_time = round(time.time() - lsm_start_time, 2)
+    # current_thread = threading.current_thread().getName()
+    # my_logger.info(
+    #     f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
 
 
 if __name__ == '__main__':

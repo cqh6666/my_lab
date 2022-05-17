@@ -59,10 +59,11 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     # 选出相似性前len_split个样本 返回numpy格式
     select_id = similar_rank.iloc[:len_split, 0].values
 
+    # 10%的数据 个性化建模
     x_train = train_rank_x.iloc[select_id, :]
     fit_train = x_train
     y_train = train_rank_y.iloc[select_id]
-    # the chosen one
+    # 某个目标患者
     fit_test = X_test
 
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
@@ -77,6 +78,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
                           verbose_eval=False)
 
     d_test_local = xgb.DMatrix(fit_test)
+    # 二分类的话，得到的是概率值
     predict_prob = xgb_local.predict(d_test_local)
 
     # len_split长度 - 1长度 = 自动伸展为len_split  代表每个特征的差异
@@ -217,8 +219,7 @@ if __name__ == '__main__':
 
         new_ki_map = list(map(lambda x: x if x > 0 else 0, new_ki))
         # list -> dataframe
-        normalize_weight = pd.DataFrame(
-            {'Ma_update_{}'.format(iteration_idx): new_ki_map})
+        normalize_weight = pd.DataFrame({f'Ma_update_{iteration_idx}': new_ki_map})
 
         try:
             # if iteration_idx % step == 0:

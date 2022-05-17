@@ -1,4 +1,4 @@
-#encoding=gbk
+# encoding=gbk
 """
 build personal xgb models for test data with learned KL metric
 """
@@ -16,26 +16,6 @@ from my_logger import MyLog
 
 warnings.filterwarnings('ignore')
 my_logger = MyLog().logger
-
-
-def get_global_xgb_para():
-    """global xgb para"""
-    params = {
-        'booster': 'gbtree',
-        'max_depth': 8,
-        'min_child_weight': 7,
-        'eta': 0.15,
-        'objective': 'binary:logistic',
-        'nthread': xgb_thread_num,
-        'verbosity': 0,
-        'eval_metric': 'logloss',
-        'subsample': 0.5,
-        'colsample_bytree': 0.5,
-        'tree_method': 'hist',
-        'seed': 1001,
-    }
-    num_boost_round = xgb_boost_num
-    return params, num_boost_round
 
 
 def get_local_xgb_para():
@@ -56,17 +36,6 @@ def get_local_xgb_para():
     }
     num_boost_round = xgb_boost_num
     return params, num_boost_round
-
-
-def get_global_xgb():
-    """train a global xgb model"""
-    params, num_boost_round = get_global_xgb_para()
-    d_train_global = xgb.DMatrix(data=train_x, label=train_y)
-    model = xgb.train(params=params,
-                      dtrain=d_train_global,
-                      num_boost_round=num_boost_round,
-                      verbose_eval=False)
-    return model
 
 
 def personalized_modeling(pre_data, idx, x_test):
@@ -92,22 +61,61 @@ def personalized_modeling(pre_data, idx, x_test):
 
     d_train_local = xgb.DMatrix(fit_train, label=select_train_y, weight=sample_ki)
     params, num_boost_round = get_local_xgb_para()
-
     xgb_local = xgb.train(params=params,
                           dtrain=d_train_local,
                           num_boost_round=num_boost_round,
                           verbose_eval=False)
-
     d_test_local = xgb.DMatrix(fit_test)
     proba = xgb_local.predict(d_test_local)
 
     global_lock.acquire()
     test_result.loc[idx, 'proba'] = proba
-    # p_weight.loc[idx, :] = xgb_local.get_score(importance_type='weight')
     global_lock.release()
 
     # run_time = round(time.time() - personalized_modeling_start_time, 2)
     # my_logger.info(f"idx:{idx} | build time:{run_time}s")
+
+
+def get_feature_weight_list(metric_iter, boost_num):
+    """
+    得到特征权重列表
+    :param boost_num: xgb树的数量
+    :param metric_iter: 迭代次数（str类型）
+    :return:
+    """
+    if learned_metric_iteration == "0":
+        feature_importance_file = os.path.join(XGB_MODEL_PATH, '0006_xgb_global_feature_weight_boost100.csv')
+    else:
+        weight_file_name = f'0008_24h_{metric_iter}_feature_weight_localboost{boost_num}_no_transfer.csv'
+        feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
+
+    f_weight = pd.read_csv(feature_importance_file)
+    f_weight = f_weight.squeeze().tolist()
+    return f_weight
+
+
+def get_train_test_data():
+    """
+    训练集测试集数据获取
+    :return:
+    """
+    train_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+    train_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+    test_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+    test_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+
+    return train_x, train_y, test_x, test_y
+
+
+def params_logger_info_show():
+    my_logger.warning(
+        f"[xgb  params] - xgb_thread_num:{xgb_thread_num},  xgb_boost_num:{xgb_boost_num}")
+    my_logger.warning(
+        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:{transfer_flag}")
 
 
 if __name__ == '__main__':
@@ -121,51 +129,34 @@ if __name__ == '__main__':
     select_ratio = 0.1
     m_sample_weight = 0.01
     pool_nums = 20
+    glo_tl_boost_num = 20
 
-    # ----- work space -----
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
+    is_transfer = 0
+    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
+
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai /data/24h/"  # 训练集的X和Y
     XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
-
-    PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_no_transfer_psm/'
-    TEST_RESULT_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_no_transfer/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_{transfer_flag}_psm/'
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_{transfer_flag}/'
 
     # 训练集的X和Y
-    train_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
-    train_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_y_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
-    test_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_x_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
-    test_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
-
-    # 读取迭代了k次的特征权重csv文件
-    weight_file_name = f'0008_24h_{learned_metric_iteration}_feature_weight_localboost{xgb_boost_num}_no_transfer.csv'
-    feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
-    feature_weight = pd.read_csv(feature_importance_file)
-    feature_weight = feature_weight.squeeze().tolist()
+    train_x, train_y, test_x, test_y = get_train_test_data()
 
     final_idx = test_x.shape[0]
     end_idx = final_idx if end_idx > final_idx else end_idx
+    len_split = int(train_x.shape[0] * select_ratio)  # the number of selected train data
 
-    my_logger.warning(
-        f"[xgb  params] - xgb_thread_num:{xgb_thread_num},  xgb_boost_num:{xgb_boost_num}")
-    my_logger.warning(
-        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, ")
+    # 读取迭代了k次的特征权重csv文件
+    feature_weight = get_feature_weight_list(metric_iter=learned_metric_iteration, boost_num=xgb_thread_num)
 
-    # the number of selected train data
-    len_split = int(train_x.shape[0] * select_ratio)
+    # 显示参数信息
+    params_logger_info_show()
 
     # init test result
     test_result = pd.DataFrame(columns=['real', 'proba'])
     test_result['real'] = test_y.iloc[start_idx:end_idx]
 
-    # init p_weight to save weight importance for each personalized model
-    # p_weight = pd.DataFrame(index=test_result.index.tolist(), columns=test_x.columns.tolist())
-
-    # get thread lock
     global_lock = threading.Lock()
-
     start_time = time.time()
     # init thread list
     thread_list = []
@@ -188,7 +179,8 @@ if __name__ == '__main__':
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_proba_no_transfer.csv')
+        test_result_csv = os.path.join(TEST_RESULT_PATH,
+                                       f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_proba_{transfer_flag}.csv')
         test_result.to_csv(test_result_csv, index=False)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:
