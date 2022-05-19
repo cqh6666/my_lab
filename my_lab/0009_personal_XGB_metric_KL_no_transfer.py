@@ -125,7 +125,7 @@ if __name__ == '__main__':
     learned_metric_iteration = str(sys.argv[3])
 
     xgb_boost_num = 70
-    xgb_thread_num = 2
+    xgb_thread_num = 1
     select_ratio = 0.1
     m_sample_weight = 0.01
     pool_nums = 20
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     is_transfer = 0
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai /data/24h/"  # 训练集的X和Y
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
     XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
     PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_{transfer_flag}_psm/'
     TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_{transfer_flag}/'
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     len_split = int(train_x.shape[0] * select_ratio)  # the number of selected train data
 
     # 读取迭代了k次的特征权重csv文件
-    feature_weight = get_feature_weight_list(metric_iter=learned_metric_iteration, boost_num=xgb_thread_num)
+    feature_weight = get_feature_weight_list(metric_iter=learned_metric_iteration, boost_num=xgb_boost_num)
 
     # 显示参数信息
     params_logger_info_show()

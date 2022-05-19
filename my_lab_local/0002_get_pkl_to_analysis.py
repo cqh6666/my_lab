@@ -24,8 +24,8 @@ if __name__ == '__main__':
     BASE_PATH = "D:\\lab\\other_file\\"
 
     result_dict_list = []
-    for year in range(2010,2018):
-        file_path = os.path.join(BASE_PATH, f"lab_unit_result_{year}.pkl")
+    for year in range(2010, 2018):
+        file_path = os.path.join(BASE_PATH, f"lab_unit_result_{year}_v2.pkl")
         result_dict_list.append(get_result_by_pkl(file_path))
 
 

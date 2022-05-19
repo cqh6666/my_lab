@@ -134,11 +134,11 @@ if __name__ == '__main__':
     regularization_c = 0.05
     m_sample_weight = 0.01
 
-    n_thread = 2
+    n_thread = 1
     # 做迁移时才会有这个全局模型参数
     glo_tl_boost_num = 20
     xgb_boost_num = 50
-    pool_nums = 20
+    pool_nums = 30
     n_personal_model_each_iteration = 1000
 
     # 迁移模型

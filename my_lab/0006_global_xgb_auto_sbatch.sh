@@ -1,6 +1,6 @@
 #!/bin/sh
 
-boost_nums=1
+boost_nums=20
 step=10
 
 while ((boost_nums <= 50))

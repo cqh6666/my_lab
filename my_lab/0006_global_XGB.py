@@ -7,12 +7,11 @@ the parameters refer to BR
 import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import roc_auc_score
-import warnings
 import pickle
 import os
 from my_logger import MyLog
 import time
-
+import sys
 
 def xgb_train_global(num_boost_round):
     d_train = xgb.DMatrix(train_x, label=train_y)
@@ -87,18 +86,18 @@ if __name__ == '__main__':
     # 自定义日志
     my_logger = MyLog().logger
 
-    num_boost = 100
+    num_boost = int(sys.argv[1])
     pre_hour = 24
     key_component = '24h_all_999_norm_miss'
 
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h/"
-    MODEL_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model'
+    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/{pre_hour}h_xgb_model'
     FEATURE_MAP_PATH = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/"
 
-    train_x = pd.read_feather(os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
-    train_y = pd.read_feather(os.path.join(DATA_SOURCE_PATH, "all_y_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
-    test_x = pd.read_feather(os.path.join(DATA_SOURCE_PATH, "all_x_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
-    test_y = pd.read_feather(os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+    train_x = pd.read_feather(os.path.join(DATA_SOURCE_PATH, f"all_x_train_{pre_hour}h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+    train_y = pd.read_feather(os.path.join(DATA_SOURCE_PATH, f"all_y_train_{pre_hour}h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+    test_x = pd.read_feather(os.path.join(DATA_SOURCE_PATH, f"all_x_test_{pre_hour}h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+    test_y = pd.read_feather(os.path.join(DATA_SOURCE_PATH, f"all_y_test_{pre_hour}h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
 
     save_model_name = f'0006_xgb_global_{key_component}_boost{num_boost}.pkl'
     remained_feature_file = os.path.join(FEATURE_MAP_PATH, f'{pre_hour}_999_remained_new_feature_map.csv')

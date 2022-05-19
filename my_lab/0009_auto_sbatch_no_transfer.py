@@ -10,7 +10,7 @@ from my_logger import MyLog
 
 my_logger = MyLog().logger
 PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_no_transfer_psm/'
-iteration_idx = 5
+iteration_idx = 15
 xgb_boost_num = 70
 step = 5
 # 1 -> true , 0 -> false

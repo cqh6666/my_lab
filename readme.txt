@@ -13,3 +13,7 @@ conda deactivate
 cp /panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/24/24h_snap1_rm1_remain_feature.csv /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/24h_999_remained_feature.csv
 cp ../data/new_feature_map.csv /panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/new_feature_map.csv
 conda create
+
+
+/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/
+/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code

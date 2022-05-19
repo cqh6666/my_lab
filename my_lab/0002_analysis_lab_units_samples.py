@@ -2,7 +2,7 @@
 """
 -------------------------------------------------
    File Name:     get_some_samples
-   Description:   ...
+   Description:   处理并分析每一年的lab数据单位问题
    Author:        cqh
    date:          2022/5/11 9:52
 -------------------------------------------------
@@ -22,6 +22,7 @@ from threading import Lock
 import os
 import sys
 
+
 def get_lab_and_unit(e_id, lab_input_data):
     """
     lab_input_data
@@ -37,7 +38,7 @@ def get_lab_and_unit(e_id, lab_input_data):
       ],
       ...
     ]
-    :param e_id: 病人ID
+    :param e_id: 病人ID（若需要的话）
     :param lab_input_data:
     :return:
     """
@@ -73,6 +74,10 @@ def get_lab_and_unit(e_id, lab_input_data):
 
 
 def multi_thread_process():
+    """
+    多线程处理所有病人的关于lab数据
+    :return:
+    """
     my_logger.warning("start process ... ")
     start_time = time.time()
     with ThreadPoolExecutor(max_workers=pool_nums) as executor:
@@ -117,6 +122,9 @@ def analysis_lab_unit():
         lab_data_unit_count = lab_data_id['unit'].value_counts().to_frame().astype('float64').sort_values(by=['unit'],
                                                                                                           ascending=False)
         lab_data_unit_count['percent'] = lab_data_unit_count.div(lab_data_unit_count.sum())
+        lab_data_unit_count['mean'] = lab_data_id.groupby("unit").agg({'value': 'mean'})
+        lab_data_unit_count['min'] = lab_data_id.groupby("unit").agg({'value': 'min'})
+        lab_data_unit_count['max'] = lab_data_id.groupby("unit").agg({'value': 'max'})
         lab_data_unit_result[lab_id] = lab_data_unit_count
 
     my_logger.warning(f"lab_data_unit_result keys:{lab_data_unit_result.keys()}")
@@ -132,11 +140,14 @@ def get_result_by_pkl(pkl_path):
 
 
 if __name__ == '__main__':
+    # 年份
     year = str(sys.argv[1])
+
     BASE_PATH = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/analysis_lab_data/"
     string_list_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/yuanborong/data/row_data_encounterId/{year}_string2list.pkl"
     lab_csv_save_path = os.path.join(BASE_PATH, f"lab_unit_all_sample_{year}.csv")
-    lab_result_pkl_save_path = os.path.join(BASE_PATH, f"lab_unit_result_{year}.pkl")
+    lab_result_pkl_save_path = os.path.join(BASE_PATH, f"lab_unit_result_{year}_v2.pkl")
+    # lab csv data columns
     columns = ['lab_id', 'value', 'unit', 'day']
 
     pool_nums = 20
@@ -154,6 +165,9 @@ if __name__ == '__main__':
     write_lock = Lock()
     my_logger.warning("starting to process lab data and save to csv...")
     multi_thread_process()
-    lab_all_sample_df.to_csv(lab_csv_save_path, index=False)
-    my_logger.warning("starting to save the result to pkl...")
-    analysis_lab_unit()
+    if lab_all_sample_df.shape[0] == 0:
+        my_logger.error("process lab data fail...")
+    else:
+        lab_all_sample_df.to_csv(lab_csv_save_path, index=False)
+        my_logger.warning("starting to analysis lab unit and save the result to pkl...")
+        analysis_lab_unit()

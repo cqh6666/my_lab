@@ -134,9 +134,9 @@ if __name__ == '__main__':
     m_sample_weight = 0.01
 
     # 不迁移的话设置为20+50
-    xgb_thread_num = 2
+    xgb_thread_num = 1
     xgb_boost_num = 70
-    pool_nums = 20
+    pool_nums = 30
     n_personal_model_each_iteration = 1000
 
     my_logger.warning(

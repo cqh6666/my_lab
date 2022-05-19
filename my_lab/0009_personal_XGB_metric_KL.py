@@ -120,7 +120,7 @@ if __name__ == '__main__':
     end_idx = int(sys.argv[2])
     learned_metric_iteration = str(sys.argv[3])
 
-    xgb_thread_num = 2
+    xgb_thread_num = 1
     select_ratio = 0.1
     m_sample_weight = 0.01
     pool_nums = 20

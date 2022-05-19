@@ -1,18 +1,23 @@
 #!/bin/sh
+step=1500
 final=21613
 
-step=1500
-iter=5
-iter_step=5
-max_iter=10
+iter=1
+iter_step=1
+max_iter=4
+is_transfer=1
 
-while (($iter <= $max_iter))
+while [ $iter -le $max_iter ]
 do
   start=0
   end=$step
-  while [ $start -lt $final ]
+  while [ $start -le $final ]
   do
-    sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0009_personal_XGB_metric_KL_no_transfer.sh ${start} ${end} ${iter}
+    if [ $is_transfer -eq 1 ]; then
+      sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0009_personal_XGB_metric_KL.sh ${start} ${end} ${iter}
+    elif [ $is_transfer -eq 0 ]; then
+      sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0009_personal_XGB_metric_KL_no_transfer.sh ${start} ${end} ${iter}
+    fi
     let start=start+$step
     let end=end+$step
   done

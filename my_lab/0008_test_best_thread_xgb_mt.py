@@ -48,7 +48,7 @@ def get_local_xgb_para(xgb_thread_num):
 
 
 def xgb_train(xgb_thread_num):
-    train_start_time = time.time()
+    # train_start_time = time.time()
     d_train_local = xgb.DMatrix(train_x, label=train_y)
     params, num_boost_round = get_local_xgb_para(xgb_thread_num)
 
@@ -56,10 +56,9 @@ def xgb_train(xgb_thread_num):
               dtrain=d_train_local,
               num_boost_round=num_boost_round,
               verbose_eval=False)
-    train_end_time = time.time()
-    run_time = round(train_end_time - train_start_time, 2)
-    my_logger.info(f"xgb_thread_num: {xgb_thread_num} | cost: {run_time} s")
-    return run_time
+    # train_end_time = time.time()
+    # run_time = round(train_end_time - train_start_time, 2)
+    # my_logger.info(f"xgb_thread_num: {xgb_thread_num} | cost: {run_time} s")
 
 
 if __name__ == '__main__':
@@ -71,29 +70,32 @@ if __name__ == '__main__':
     train_y = pd.read_feather(
         os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
 
-    pool_nums = 25
+    pool_nums = 15
     n_thread = 10
     xgb_boost_num = 70
     n_iter = 200
     my_logger = MyLog().logger
-    all_avg_time = []
     my_logger.warning(f"[params] - xgb_boost_num:{xgb_boost_num}, n_thread:{n_thread}, pool_nums:{pool_nums}, n_iter:{n_iter}")
-    for n_t in range(1, n_thread):
-        avg_time = []
-        thread_start_time = time.time()
-        with ThreadPoolExecutor(max_workers=pool_nums) as executor:
-            thread_list = []
-            for i in range(n_iter):
-                thread = executor.submit(xgb_train, n_t)
-                thread_list.append(thread)
 
-            for future in as_completed(thread_list):
-                avg_time.append(thread.result())
-        cur_avg_time = np.mean(avg_time)
-        all_avg_time.append(cur_avg_time)
-        thread_end_time = time.time()
-        my_logger.info(f"n_thread_idx: {n_t} | build {n_iter} all cost:{thread_end_time - thread_start_time} s | avg cost:{cur_avg_time} s \n")
-        collect()
+    run_time_list = []
+    n_thread_list = [1, 2, 3, 4]
+    pool_nums_list = [15, 20, 25, 30]
+    for p_n in pool_nums_list:
+        cur_run_time = []
+        for n_t in n_thread_list:
+            thread_start_time = time.time()
+            with ThreadPoolExecutor(max_workers=p_n) as executor:
+                thread_list = []
+                for i in range(n_iter):
+                    thread = executor.submit(xgb_train, n_t)
+                    thread_list.append(thread)
+
+                wait(thread_list, return_when=ALL_COMPLETED)
+            thread_run_time = round(time.time() - thread_start_time, 2)
+            cur_run_time.append(thread_run_time)
+            my_logger.info(f"pool_nums_idx: {p_n} | n_thread_idx: {n_t} | cost:{thread_run_time} s \n")
+            collect()
+        run_time_list.append(cur_run_time)
 
     my_logger.warning("all thread cost time list:")
-    my_logger.info(all_avg_time)
+    my_logger.info(run_time_list)

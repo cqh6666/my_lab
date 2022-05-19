@@ -13,9 +13,9 @@
 __author__ = 'cqh'
 import joblib
 
-map_file_path = "/home/xzhang_sta/work/yuanborong/data/row_data/feature_dict_BDAI_map.pkl"
-model = joblib.load(map_file_path)
-print("model type: ", type(model))
-print(model)
+# map_file_path = "/home/xzhang_sta/work/yuanborong/data/row_data/feature_dict_BDAI_map.pkl"
+# model = joblib.load(map_file_path)
+# print("model type: ", type(model))
+# print(model)
 
-from multiprocessing import Pool, shared_memory
+result_list =

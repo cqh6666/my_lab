@@ -122,7 +122,7 @@ if __name__ == '__main__':
     # 先合并再计算auc
     all_result_file = os.path.join(AUC_RESULT_PATH, all_prob_csv_name)
     if os.path.exists(all_result_file):
-        logger.warning(f"exist {all_result_file}, done!")
+        logger.warning(f"exist {all_result_file}, will not concat and cal result...")
     else:
         get_concat_result(flag)
         cal_auc_result()
