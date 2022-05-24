@@ -55,23 +55,31 @@ def get_concat_result(file_flag):
         raise err
 
 
+def save_result_file(score):
+    """
+    保存auc结果
+    :param score:
+    :return:
+    """
+    result_file_list = [[learned_metric_iteration, score]]
+    result_score_df = pd.DataFrame(result_file_list, columns=['iter_idx', 'auc'])
+    if os.path.exists(auc_result_file):
+        result_score_df.to_csv(auc_result_file, index=False, mode='a', header=False)
+        logger.warning(f'exist result file and save success - {learned_metric_iteration}, {score}')
+    else:
+        result_score_df.to_csv(auc_result_file, index=False, header=True)
+        logger.warning(f'no exist result file, create and save result success! - {learned_metric_iteration}, {score}')
+
+
 def cal_auc_result():
     """
     读取csv文件，分别存有real和proba列，计算auc结果
     :return:
     """
     result = pd.read_csv(all_result_file)
-    y_test = result['real']
-    y_pred = result['proba']
-
-    logger.info(f"result shape: {result.shape}")
-
+    y_test, y_pred = result['real'], result['proba']
     score = roc_auc_score(y_test, y_pred)
-    result_score_str = f"{learned_metric_iteration},{score}"
-    with open(result_file, 'a+') as f:
-        f.write(result_score_str + "\n")
-        logger.warning(result_score_str)
-        logger.warning("cal auc and save success!")
+    save_result_file(score)
 
 
 def process_and_plot_result():
@@ -101,8 +109,8 @@ def process_and_plot_result():
 
 
 if __name__ == '__main__':
+    # input params
     learned_metric_iteration = str(sys.argv[1])
-    # 1 代表 迁移 ， 0 代表 不迁移
     is_transfer = int(sys.argv[2])
 
     logger = MyLog().logger
@@ -116,11 +124,11 @@ if __name__ == '__main__':
     flag = f"0009_{learned_metric_iteration}_"
     # 多批量整合而成的整体csv文件名
     all_prob_csv_name = f'{flag}all_proba_{transfer_flag}.csv'
-    # 将最终的auc结果进行保存
-    result_file = os.path.join(AUC_RESULT_PATH, f"24h_auc_result_{transfer_flag}.txt")
-
     # 先合并再计算auc
     all_result_file = os.path.join(AUC_RESULT_PATH, all_prob_csv_name)
+    # 将最终的auc结果进行保存
+    auc_result_file = os.path.join(AUC_RESULT_PATH, f"24h_auc_result_{transfer_flag}.csv")
+
     if os.path.exists(all_result_file):
         logger.warning(f"exist {all_result_file}, will not concat and cal result...")
     else:

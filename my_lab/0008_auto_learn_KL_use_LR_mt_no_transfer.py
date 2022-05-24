@@ -3,7 +3,6 @@
 多线程跑程序
 """
 import threading
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import time
 import numpy as np
 import pandas as pd
@@ -12,30 +11,11 @@ import xgboost as xgb
 import warnings
 import os
 from my_logger import MyLog
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import sys
 from gc import collect
 
 warnings.filterwarnings('ignore')
-
-
-def get_local_xgb_para():
-    """personal xgb para"""
-    params = {
-        'booster': 'gbtree',
-        'max_depth': 11,
-        'min_child_weight': 7,
-        'subsample': 1,
-        'colsample_bytree': 0.7,
-        'eta': 0.05,
-        'objective': 'binary:logistic',
-        'nthread': xgb_thread_num,
-        'verbosity': 0,
-        'eval_metric': 'logloss',
-        'seed': 998,
-        'tree_method': 'hist'
-    }
-    num_boost_round = xgb_boost_num
-    return params, num_boost_round
 
 
 def learn_similarity_measure(pre_data, true, I_idx, X_test):
@@ -69,13 +49,8 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
     d_train_local = xgb.DMatrix(fit_train, label=y_train, weight=sample_ki)
-    params, num_boost_round = get_local_xgb_para()
 
-    # 不做xgb迁移
-    xgb_local = xgb.train(params=params,
-                          dtrain=d_train_local,
-                          num_boost_round=num_boost_round,
-                          verbose_eval=False)
+
 
     d_test_local = xgb.DMatrix(fit_test)
     # 二分类的话，得到的是概率值

@@ -22,9 +22,8 @@ sh 0009_auto_sbatch.sh
 ## 0010 计算auc。
 将0009每次迭代多份数据进行合并成为1个文件，然后计算最终的auc结果；
 涉及到的有 `0010_get_auc_result.py`, `0010_auto_get_auc_result.sh`
-
 - `0010_auto_get_auc_result.sh` 也是自动脚本，通过赋予迭代参数进行处理。
-
 ```shell script
 sh 0010_auto_get_auc_result.sh
 ```
+
