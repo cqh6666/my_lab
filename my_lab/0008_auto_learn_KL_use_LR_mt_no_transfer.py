@@ -2,18 +2,18 @@
 """
 多线程跑程序
 """
-import threading
+from threading import Lock
 import time
 import numpy as np
 import pandas as pd
 from random import shuffle
-import xgboost as xgb
 import warnings
 import os
 from my_logger import MyLog
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import sys
 from gc import collect
+from sklearn.linear_model import LogisticRegression
 
 warnings.filterwarnings('ignore')
 
@@ -27,7 +27,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     :param X_test: dataFrame格式的目标患者特征集
     :return:
     """
-    # lsm_start_time = time.time()
+    lsm_start_time = time.time()
 
     similar_rank = pd.DataFrame()
 
@@ -41,27 +41,27 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
 
     # 10%的数据 个性化建模
     x_train = train_rank_x.iloc[select_id, :]
+    # fit_train = x_train * init_weight
     fit_train = x_train
     y_train = train_rank_y.iloc[select_id]
-    # 某个目标患者
+    # fit_test = X_test * init_weight
     fit_test = X_test
 
+    # 相似样本对应的权重，越相似权重越高
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
-    d_train_local = xgb.DMatrix(fit_train, label=y_train, weight=sample_ki)
+    # my_logger.info(f"[{I_idx}] fit_train:{fit_train.shape} | y_train:{y_train.shape} | sample_ki:{len(sample_ki)} | fit_test:{fit_test.shape}")
 
+    lr_local = LogisticRegression(solver='liblinear')
+    lr_local.fit(fit_train, y_train, sample_ki)
 
-
-    d_test_local = xgb.DMatrix(fit_test)
-    # 二分类的话，得到的是概率值
-    predict_prob = xgb_local.predict(d_test_local)
-
+    y_predict = lr_local.predict_proba(fit_test)[:, 1]
     # len_split长度 - 1长度 = 自动伸展为len_split  代表每个特征的差异
     x_train = x_train - pre_data
     x_train = abs(x_train)
     # 特征差异的均值
     mean_r = np.mean(x_train)
-    y = abs(true - predict_prob)
+    y = abs(true - y_predict)
 
     global iteration_data
     global iteration_y
@@ -76,17 +76,19 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     finally:
         lock.release()
 
-    # run_time = round(time.time() - lsm_start_time, 2)
-    # current_thread = threading.current_thread().getName()
-    # my_logger.info(
-    #     f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
+    run_time = round(time.time() - lsm_start_time, 2)
+    my_logger.info(f"[{I_idx}] cost time: {run_time} s")
 
 
 if __name__ == '__main__':
 
+    pre_hour = 24
+    is_transfer = 0
+    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
+
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
-    XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
-    PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_no_transfer_psm/'
+    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/global_model/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/{transfer_flag}_psm/'
 
     train_x = pd.read_feather(
         os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
@@ -109,24 +111,23 @@ if __name__ == '__main__':
     m_sample_weight = 0.01
 
     # 不迁移的话设置为20+50
-    xgb_thread_num = 1
-    xgb_boost_num = 70
-    pool_nums = 30
+    pool_nums = 25
     n_personal_model_each_iteration = 1000
 
     my_logger.warning(
-        f"[params] - xgb_thread_num:{xgb_thread_num}, xgb_bootst_num:{xgb_boost_num}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}")
+        f"[params] - pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}")
+
+    init_wi_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr.csv")
+    init_weight = pd.read_csv(init_wi_file_name)
 
     # ----- init weight -----
     if init_iteration == 0:
-        # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
-        file_name = '0006_xgb_global_feature_weight_boost100.csv'
-        normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
+        normalize_weight = init_weight
     else:
-        file_name = f'0008_24h_{init_iteration}_feature_weight_localboost{xgb_boost_num}_no_transfer.csv'
-        normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
+        wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_{transfer_flag}.csv")
+        normalize_weight = pd.read_csv(wi_file_name)
 
-    lock = threading.Lock()
+    lock = Lock()
     my_logger.warning("start iteration ... ")
 
     # ----- iteration -----
@@ -197,12 +198,11 @@ if __name__ == '__main__':
         normalize_weight = pd.DataFrame({f'Ma_update_{iteration_idx}': new_ki_map})
 
         try:
-            # if iteration_idx % step == 0:
-            file_name = f'0008_24h_{iteration_idx}_feature_weight_localboost{xgb_boost_num}_no_transfer.csv'
-            normalize_weight.to_csv(os.path.join(PSM_SAVE_PATH, file_name), index=False)
-            my_logger.warning(f"iter idx: {iteration_idx} | save {file_name} success!")
+            wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{iteration_idx}_psm_{transfer_flag}.csv")
+            normalize_weight.to_csv(wi_file_name, index=False)
+            my_logger.warning(f"iter idx: {iteration_idx} | save {wi_file_name} success!")
         except Exception as err:
-            my_logger.error(f"iter idx: {iteration_idx} | save {file_name} error!")
+            my_logger.error(f"iter idx: {iteration_idx} | save error!")
             raise err
 
         del iteration_data, iteration_y, new_ki

@@ -12,7 +12,9 @@
 """
 __author__ = 'cqh'
 
+import warnings
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
+from multiprocessing import Pool
 
 from sklearn.datasets import load_breast_cancer
 from sklearn.linear_model import LogisticRegression
@@ -24,8 +26,10 @@ import time
 import os
 import pandas as pd
 
+warnings.filterwarnings('ignore')
 
-def global_train():
+
+def global_train(idx):
 
     start_time = time.time()
 
@@ -41,8 +45,8 @@ def global_train():
     auc = roc_auc_score(y_test, y_predict)
 
     run_time = round(time.time() - start_time, 2)
-
-    my_logger.info(f'train time: {run_time} s, auc: {auc}')
+    time.sleep(1)
+    my_logger.info(f'[{idx}] train cost time: {run_time} s, auc: {auc}')
 
 
 if __name__ == '__main__':
@@ -59,14 +63,23 @@ if __name__ == '__main__':
     x_train, x_test, y_train, y_test = train_test_split(data_x, data_y, test_size=0.2, random_state=45)
 
     start_time = time.time()
+    # # 多进程
     # pool = Pool(processes=pool_nums)
-    # for iter_idx in range(100, 3000, 100):
-    #     pool.apply_async(func=global_train, args=(train_x, train_y, test_x, test_y, iter_idx))
+    # for iter_idx in range(0, 100, 1):
+    #     pool.apply_async(func=global_train)
     # pool.close()
     # pool.join()
-    my_logger.warning("start mt training...")
 
-    global_train()
+    my_logger.warning("start mt training...")
+    # # 多线程
+    with ThreadPoolExecutor(max_workers=pool_nums) as executor:
+        thread_list = []
+        for i in range(0, 100, 1):
+            thread = executor.submit(global_train, i)
+            thread_list.append(thread)
+        wait(thread_list, return_when=ALL_COMPLETED)
+
+
     run_time = round(time.time() - start_time, 2)
 
     my_logger.info(f"train all models time: {run_time} s")
