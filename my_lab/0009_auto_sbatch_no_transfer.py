@@ -13,8 +13,6 @@ PSM_SAVE_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal
 iteration_idx = 15
 xgb_boost_num = 70
 step = 5
-# 1 -> true , 0 -> false
-is_transfer = 0
 
 my_logger.warning("start checking ...")
 while iteration_idx <= 120:
@@ -24,7 +22,7 @@ while iteration_idx <= 120:
         my_logger.info(f"{psm_no_transfer_file_name} - exist...")
         time.sleep(20)
         os.system(
-            f'sh /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0009_auto_sbatch.sh {iteration_idx} {is_transfer}')
+            f'sh /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0009_auto_sbatch.sh {iteration_idx} 0')
         iteration_idx += step
     else:
         time.sleep(30)

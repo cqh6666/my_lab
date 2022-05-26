@@ -52,7 +52,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
     # my_logger.info(f"[{I_idx}] fit_train:{fit_train.shape} | y_train:{y_train.shape} | sample_ki:{len(sample_ki)} | fit_test:{fit_test.shape}")
 
-    lr_local = LogisticRegression(solver='liblinear')
+    lr_local = LogisticRegression(solver='liblinear', max_iter=local_lr_iter)
     lr_local.fit(fit_train, y_train, sample_ki)
 
     y_predict = lr_local.predict_proba(fit_test)[:, 1]
@@ -83,12 +83,10 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
 if __name__ == '__main__':
 
     pre_hour = 24
-    is_transfer = 0
-    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/{transfer_flag}_psm/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/no_transfer_psm/'
 
     train_x = pd.read_feather(
         os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
@@ -111,21 +109,20 @@ if __name__ == '__main__':
     m_sample_weight = 0.01
 
     # 不迁移的话设置为20+50
-    pool_nums = 25
+    pool_nums = 30
     n_personal_model_each_iteration = 1000
+    global_lr_iter = 400
+    local_lr_iter = 50
 
     my_logger.warning(
-        f"[params] - pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}")
-
-    init_wi_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr.csv")
-    init_weight = pd.read_csv(init_wi_file_name)
+        f"[params] - pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}, global_lr:{global_lr_iter}, local_lr:{local_lr_iter}")
 
     # ----- init weight -----
     if init_iteration == 0:
-        normalize_weight = init_weight
+        wi_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
     else:
-        wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_{transfer_flag}.csv")
-        normalize_weight = pd.read_csv(wi_file_name)
+        wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_no_transfer.csv")
+    normalize_weight = pd.read_csv(wi_file_name)
 
     lock = Lock()
     my_logger.warning("start iteration ... ")
@@ -198,7 +195,7 @@ if __name__ == '__main__':
         normalize_weight = pd.DataFrame({f'Ma_update_{iteration_idx}': new_ki_map})
 
         try:
-            wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{iteration_idx}_psm_{transfer_flag}.csv")
+            wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{iteration_idx}_psm_no_transfer.csv")
             normalize_weight.to_csv(wi_file_name, index=False)
             my_logger.warning(f"iter idx: {iteration_idx} | save {wi_file_name} success!")
         except Exception as err:

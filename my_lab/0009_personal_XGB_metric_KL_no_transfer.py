@@ -115,7 +115,7 @@ def params_logger_info_show():
     my_logger.warning(
         f"[xgb  params] - xgb_thread_num:{xgb_thread_num},  xgb_boost_num:{xgb_boost_num}")
     my_logger.warning(
-        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:{transfer_flag}")
+        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:no_transfer")
 
 
 if __name__ == '__main__':
@@ -131,13 +131,10 @@ if __name__ == '__main__':
     pool_nums = 20
     glo_tl_boost_num = 20
 
-    is_transfer = 0
-    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
-
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
     XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_{transfer_flag}_psm/'
-    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_{transfer_flag}/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_no_transfer_psm/'
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_no_transfer/'
 
     # 训练集的X和Y
     train_x, train_y, test_x, test_y = get_train_test_data()
@@ -180,7 +177,7 @@ if __name__ == '__main__':
     # ----- save result -----
     try:
         test_result_csv = os.path.join(TEST_RESULT_PATH,
-                                       f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_proba_{transfer_flag}.csv')
+                                       f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_proba_no_transfer.csv')
         test_result.to_csv(test_result_csv, index=False)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:

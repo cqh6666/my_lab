@@ -40,10 +40,10 @@ def personalized_modeling(pre_data, idx, x_test):
     lr_local = LogisticRegression(solver='liblinear')
     lr_local.fit(fit_train, select_train_y, sample_ki)
 
-    y_predcit = lr_local.predict(fit_test)[:, 1]
-
+    y_predict = lr_local.predict_proba(fit_test)[:, 1]
+    my_logger.info(f"[{idx}] - y_predict: {y_predict}")
     global_lock.acquire()
-    test_result.loc[idx, 'prob'] = y_predcit
+    test_result.loc[idx, 'prob'] = y_predict
     global_lock.release()
 
     # run_time = round(time.time() - personalized_modeling_start_time, 2)
@@ -59,7 +59,7 @@ def get_feature_weight_list(metric_iter):
     if int(metric_iter) == 0:
         feature_importance_file = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr.csv")
     else:
-        weight_file_name = f"0008_{pre_hour}h_{metric_iter}_psm_{transfer_flag}.csv"
+        weight_file_name = f"0008_{pre_hour}h_{metric_iter}_psm_no_transfer.csv"
         feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
 
     f_weight = pd.read_csv(feature_importance_file)
@@ -86,7 +86,7 @@ def get_train_test_data():
 
 def params_logger_info_show():
     my_logger.warning(
-        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:{transfer_flag}")
+        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:no_transfer")
 
 
 if __name__ == '__main__':
@@ -98,15 +98,12 @@ if __name__ == '__main__':
     pre_hour = 24
     select_ratio = 0.1
     m_sample_weight = 0.01
-    pool_nums = 21
-
-    is_transfer = 0
-    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
+    pool_nums = 20
 
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # ÑµÁ·¼¯µÄXºÍY
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/{transfer_flag}_psm/'
-    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/test_result_{transfer_flag}/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/no_transfer_psm/'
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/test_result_no_transfer/'
 
     my_logger = MyLog().logger
 
@@ -150,7 +147,7 @@ if __name__ == '__main__':
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_prob_{transfer_flag}.csv')
+        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_prob_no_transfer.csv')
         test_result.to_csv(test_result_csv, index=False)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:

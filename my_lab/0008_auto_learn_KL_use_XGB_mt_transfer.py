@@ -146,7 +146,7 @@ if __name__ == '__main__':
     xgb_model = pickle.load(open(xgb_model_file, "rb"))
 
     my_logger.warning(
-        f"[params] - xgb_thread_num:{n_thread}, xgb_bootst_num:{xgb_boost_num}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}")
+        f"[params] - xgb_thread_num:{n_thread}, xgb_bootst_num:{xgb_boost_num}, pool_nums:{pool_nums}, personal_model:{n_personal_model_each_iteration}, init_iter:{init_iteration}")
 
     # ----- init weight  | dataFrame 格式，有header行，没index索引列-----
     if init_iteration == 0:

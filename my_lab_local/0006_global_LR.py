@@ -41,9 +41,8 @@ def global_train(idx):
     # weight_importance = lr_all.coef_[0]
 
     # predict
-    y_predict = lr_all.decision_function(x_test)
+    y_predict = lr_all.predict_proba(x_test)[:, 1]
     auc = roc_auc_score(y_test, y_predict)
-
     run_time = round(time.time() - start_time, 2)
     time.sleep(1)
     my_logger.info(f'[{idx}] train cost time: {run_time} s, auc: {auc}')
@@ -74,7 +73,7 @@ if __name__ == '__main__':
     # # 多线程
     with ThreadPoolExecutor(max_workers=pool_nums) as executor:
         thread_list = []
-        for i in range(0, 100, 1):
+        for i in range(0, 100, 100):
             thread = executor.submit(global_train, i)
             thread_list.append(thread)
         wait(thread_list, return_when=ALL_COMPLETED)
