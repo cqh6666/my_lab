@@ -37,6 +37,18 @@ def get_train_test_data():
     return train_x, train_y, test_x, test_y
 
 
+def get_train_test_data_2():
+    train_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_train_24_df_rm1_miss2_norm2.feather"))
+    train_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_train_24_df_rm1_miss2_norm2.feather"))['Label']
+    test_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_test_24_df_rm1_miss2_norm2.feather"))
+    test_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_test_24_df_rm1_miss2_norm2.feather"))['Label']
+
+    return train_x, train_y, test_x, test_y
+
 def save_weight_importance_to_csv(weight_important, max_iter):
     weight_importance = [abs(i) for i in weight_important]
     weight_importance = [i / sum(weight_importance) for i in weight_importance]

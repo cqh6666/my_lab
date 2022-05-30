@@ -156,9 +156,9 @@ def get_label(idx, labels, advance_day, map_data, all_sample):
     day_index = map_data.index("days")
     value_index = map_data.index("AKI_label")
     for AKI_data in labels:
-        if float(AKI_data[0]) > 0:
-            all_sample[idx, day_index] = float(AKI_data[1]) - advance_day
-            all_sample[idx, value_index] = 1
+        if float(AKI_data[0]) > 0:  # 正例样本
+            all_sample[idx, day_index] = float(AKI_data[1]) - advance_day  # 提前预测的天数
+            all_sample[idx, value_index] = 1  # 预测分类
             break
         else:
             all_sample[idx, day_index] = float(AKI_data[1]) - advance_day

@@ -27,3 +27,12 @@ sh 0009_auto_sbatch.sh
 sh 0010_auto_get_auc_result.sh
 ```
 
+## 命名规则
+### rm 特征选择
+rm1 - 99.9%无用特征去除 \
+### miss 缺失值填充
+miss1 - 0填充 \
+miss2 - 将med和px标签值为0设为该标签最大值*2
+### norm 标准化
+norm1 - 仅对lab标准化 \
+norm2 - 对lab px med标准化

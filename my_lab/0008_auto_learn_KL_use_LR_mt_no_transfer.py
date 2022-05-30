@@ -101,7 +101,7 @@ if __name__ == '__main__':
     # every {step} iterations, updates normalize_weight in similarity learning
     init_iteration = int(sys.argv[1])
     cur_iteration = init_iteration + 1
-    step = 2
+    step = 1
 
     l_rate = 0.00001
     select_rate = 0.1

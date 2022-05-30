@@ -9,7 +9,7 @@ iter_init = int(sys.argv[1])
 os.system(f'sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0008_auto_learn_KL_use_LR_mt_no_transfer.sh {iter_init}')
 
 xgb_boost_num = 70
-step = 2
+step = 1
 pre_hour = 24
 
 PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/no_transfer_psm/'

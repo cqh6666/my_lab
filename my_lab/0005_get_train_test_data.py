@@ -14,10 +14,10 @@ import os
 from my_logger import MyLog
 
 
-def get_data_from_feather_to_save(hour=24, test_size=0.15):
-    load_data_file = os.path.join(SOURCE_FILE_PATH, f"all_{hour}h_norm_dataframe_999_miss_medpx_max2dist.feather")
+def get_data_from_feather_to_save(test_size=0.15):
+    load_data_file = os.path.join(SOURCE_FILE_PATH, f"all_{miss_norm_file_name}.feather")
     all_samples = pd.read_feather(load_data_file)
-
+    my_logger.info(f"all samples: {all_samples.shape}")
     all_samples_y = all_samples['Label']
     all_samples_x = all_samples.drop(['ID', 'Label'], axis=1)
 
@@ -31,10 +31,9 @@ def get_data_from_feather_to_save(hour=24, test_size=0.15):
     save_dataFrame_to_feather(x_test, y_test, "test")
 
 
-def save_dataFrame_to_feather(x_data, y_data, file_flag, hour=24):
+def save_dataFrame_to_feather(x_data, y_data, file_flag):
     """
     将训练集X,Y保存为feather
-    :param hour:
     :param x_data:
     :param y_data:
     :param file_flag:
@@ -42,8 +41,8 @@ def save_dataFrame_to_feather(x_data, y_data, file_flag, hour=24):
     """
     x_data.reset_index(drop=True, inplace=True)
     y_data.reset_index(drop=True, inplace=True)
-    load_x_file = os.path.join(SOURCE_FILE_PATH, f"all_x_{file_flag}_{hour}h_norm_dataframe_999_miss_medpx_max2dist.feather")
-    load_y_file = os.path.join(SOURCE_FILE_PATH, f"all_y_{file_flag}_{hour}h_norm_dataframe_999_miss_medpx_max2dist.feather")
+    load_x_file = os.path.join(SOURCE_FILE_PATH, f"all_x_{file_flag}_{miss_norm_file_name}.feather")
+    load_y_file = os.path.join(SOURCE_FILE_PATH, f"all_y_{file_flag}_{miss_norm_file_name}.feather")
     x_data.to_feather(load_x_file)
     y_data.to_frame(name='Label').to_feather(load_y_file)
 
@@ -53,6 +52,11 @@ def save_dataFrame_to_feather(x_data, y_data, file_flag, hour=24):
 
 if __name__ == '__main__':
     pre_hour = 24
+
     SOURCE_FILE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h/'
+
+    miss_norm_file_name = f"{pre_hour}_df_rm1_norm2"
+
     my_logger = MyLog().logger
-    get_data_from_feather_to_save(pre_hour)
+    get_data_from_feather_to_save()
+
