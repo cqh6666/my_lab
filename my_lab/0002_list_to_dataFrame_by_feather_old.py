@@ -1,15 +1,18 @@
+# encoding=gbk
 """
 input:
     yuanborong/data/row_data_encounterId/{year}_string2list.pkl
     yuanborong/data/row_data/feature_dict_BDAI_map.pkl
 output:
-    {year}_24h_list2dataframe.feather
+    chenqinhai/data_old/{year}_24h_list2dataframe.feather
 
 transform nested list to cross-section data according to pre_day (pre_day=1 here)
 no feature filtration
 use multi-process and shared-memory
 
-#2022-4-19
+#2022-5-30
+½« ÓÃÒ© ´Ó ·şÒ©¾àÀë ¸Ä³É Í³¼Æ7ÌìÄÚÓÃÒ©´ÎÊı
+ÊÖÊõÃ»ÓĞ¸Ä
 
 """
 import joblib
@@ -63,10 +66,10 @@ def get_vital(idx, vital_input_data, input_t_time, map_data, all_sample):
             temp1 = np.asarray(temp)
             temp2 = temp1[:, -1]  # [b, d]
             temp2 = list(map(float, temp2))  # str to float
-            temp3 = [x for x in temp2 if x <= input_t_time]  # æ‰¾åˆ°è®°å½•æ—¶é—´ç‚¹å°äºç­‰äºé¢„æµ‹æ—¶é—´çš„å€¼
-            temp4 = np.max(temp3)  # è·ç¦»é¢„æµ‹æœ€è¿‘çš„è®°å½•ç‚¹æ—¶é—´
+            temp3 = [x for x in temp2 if x <= input_t_time]  # ÕÒµ½¼ÇÂ¼Ê±¼äµãĞ¡ÓÚµÈÓÚÔ¤²âÊ±¼äµÄÖµ
+            temp4 = np.max(temp3)  # ¾àÀëÔ¤²â×î½üµÄ¼ÇÂ¼µãÊ±¼ä
             temp2.reverse()
-            temp5 = temp2.index(temp4)  # æ ¹æ®è®°å½•ç‚¹æ—¶é—´æ‰¾åˆ°å¯¹åº”çš„ç´¢å¼•
+            temp5 = temp2.index(temp4)  # ¸ù¾İ¼ÇÂ¼µãÊ±¼äÕÒµ½¶ÔÓ¦µÄË÷Òı
             temp5 = len(temp2) - 1 - temp5
 
             if m == 3 or m == 4 or m == 5:
@@ -109,49 +112,37 @@ def get_lab(idx, input_data, input_t_time, map_data, all_sample):
     pass
 
 
-def get_med(idx, med_input_data, input_t_time, pre_day, map_data, all_sample):
+def get_med(idx, input_data, input_t_time, pre_day, map_data, all_sample):
     """
     we set days to AKI point distances as med values if non-exposure , we set NaN
     """
-    for m in range(len(med_input_data)):
+    med_windows = 7  # ÓÃÒ©Ê±¼ä´°¿ÚÌìÊı
+    for m in range(len(input_data)):
         try:
-            med_index = med_input_data[m][0][0][0]  # ['medXXX']
+            med_index = input_data[m][0][0][0]
             # Gets the eigenvalue corresponding to the subscript index
             indexNum = map_data.index(med_index)
-            temp = med_input_data[m][1]  # æ‰¾åˆ°æœç”¨è¯è®°å½• [ [a, b] [c, d] ]  a,cä»£è¡¨æ˜¯å¦æœç”¨ï¼Œb,dä»£è¡¨è·ç¦»çˆ†å‘ç‚¹ä¹‹å‰çš„å¤©æ•°
+            temp = input_data[m][1]
             temp1 = np.asarray(temp)
-            temp2 = temp1[:, -1]  # [b, d]
-            temp2 = list(map(float, temp2))  # str -> float
-            temp3 = [x for x in temp2 if x <= input_t_time]
-            temp4 = np.max(temp3)
-            # we set days to AKI point distances as med values
-            # if AKI is day 6 , pre_day is 1 .
-            # so input_t_time = 6 - 1 = 5 (predict point)
-            # temp4 is nearest day time(for example , temp4 = 4)
-            all_sample[idx, indexNum] = (input_t_time + pre_day) - temp4
+            temp2 = temp1[:, -1]
+            temp2 = list(map(float, temp2))
+            temp3 = [x for x in temp2 if input_t_time - med_windows + 1 <= x <= input_t_time]
+            temp4 = len(temp3)  # Í³¼Æ·şÒ©´ÎÊı
+            all_sample[idx, indexNum] = temp4
         except:
             continue
     pass
 
 
 def get_ccs(idx, input_data, input_t_time, map_data, all_sample):
-    """
-    
-    :param idx:
-    :param input_data:
-    :param input_t_time:
-    :param map_data:
-    :param all_sample:
-    :return:
-    """
     for m in range(len(input_data)):
         try:
-            ccsIndex = input_data[m][0][0]
             ccsTimes = input_data[m][1]
             ccsTimes = list(map(float, ccsTimes))
             ccsTime = np.min(ccsTimes)
             if ccsTime <= input_t_time:
                 # Gets the eigenvalue corresponding to the subscript index
+                ccsIndex = input_data[m][0][0]
                 indexNum = map_data.index(ccsIndex)
                 all_sample[idx][indexNum] = 1
         except:
@@ -185,9 +176,9 @@ def get_label(idx, labels, advance_day, map_data, all_sample):
     day_index = map_data.index("days")
     value_index = map_data.index("AKI_label")
     for AKI_data in labels:
-        if float(AKI_data[0]) > 0:  # æ­£ä¾‹æ ·æœ¬
-            all_sample[idx, day_index] = float(AKI_data[1]) - advance_day  # æå‰é¢„æµ‹çš„å¤©æ•°
-            all_sample[idx, value_index] = 1  # é¢„æµ‹åˆ†ç±»
+        if float(AKI_data[0]) > 0:  # ÕıÀıÑù±¾
+            all_sample[idx, day_index] = float(AKI_data[1]) - advance_day  # ÌáÇ°Ô¤²âµÄÌìÊı
+            all_sample[idx, value_index] = 1  # Ô¤²â·ÖÀà
             break
         else:
             all_sample[idx, day_index] = float(AKI_data[1]) - advance_day
@@ -198,23 +189,22 @@ def get_label(idx, labels, advance_day, map_data, all_sample):
 def process_cur_sample(idx, cur_list_data, pre_day, map_data, shape_all_sample):
     """
     use the shared_memory for all_sample
-    :param idx: æ¯ä¸€è¡Œç´¢å¼•
-    :param cur_list_data: æ¯ä¸€è¡Œæ‰€æœ‰æ•°æ®
-    :param pre_day: æå‰å¤©æ•°ï¼ˆ1->24h,2->48hï¼‰
-    :param map_data: ç‰¹å¾åˆ—è¡¨
-    :param shape_all_sample: all_sampleçš„shape (rows,columns)
+    :param idx: Ã¿Ò»ĞĞË÷Òı
+    :param cur_list_data: Ã¿Ò»ĞĞËùÓĞÊı¾İ
+    :param pre_day: ÌáÇ°ÌìÊı£¨1->24h,2->48h£©
+    :param map_data: ÌØÕ÷ÁĞ±í
+    :param shape_all_sample: all_sampleµÄshape (rows,columns)
     :return:
     """
-    # é€šè¿‡nameè¯»å…±äº«å†…å­˜å˜é‡
+    # Í¨¹ıname¶Á¹²ÏíÄÚ´æ±äÁ¿
     shared_all_sample = shared_memory.SharedMemory(name='all_sample')
-    # å†™å…±äº«å†…å­˜å˜é‡
+    # Ğ´¹²ÏíÄÚ´æ±äÁ¿
     all_sample = np.ndarray(shape=shape_all_sample, dtype=np.float64, buffer=shared_all_sample.buf)
 
     # get patient_id, aki_label and six kinds of features by nested list
     encounter_id, demo, vital, lab, ccs, px, med, label = cur_list_data
 
     # get aki_status and specific prediction time according to pre_day and aki_label
-    # é¢„æµ‹çŠ¶æ€   é¢„æµ‹çš„å¤©æ•°ï¼ˆç”¨æ¥æå–è¿™ä¹‹å‰çš„ç—…å†æ•°æ®ï¼‰
     aki_status, pre_time = get_label(idx, label, pre_day, map_data, all_sample)
     if pre_time < 0:
         return idx
@@ -231,7 +221,7 @@ def process_cur_sample(idx, cur_list_data, pre_day, map_data, shape_all_sample):
 
 def get_discard_index(x):
     """
-    å»é™¤æ— ç”¨ä¿¡æ¯ pre_time < 0
+    È¥³ıÎŞÓÃĞÅÏ¢ pre_time < 0
     """
     if x is not None:
         throw_idx.append(x)
@@ -240,7 +230,7 @@ def get_discard_index(x):
 # ----------------------------------------- work space ------------------------------------------------------
 # how many days in advance to predict
 pre_day = 1
-# æå‰å°æ—¶
+# ÌáÇ°Ğ¡Ê±
 pre_hour = pre_day * 24
 
 start_year = 2010
@@ -248,39 +238,39 @@ end_year = 2018
 
 my_logger = MyLog().logger
 
-# load map data: list of feature name è·å–ç‰¹å¾å
+# load map data: list of feature name »ñÈ¡ÌØÕ÷Ãû
 map_file_path = "/home/xzhang_sta/work/yuanborong/data/row_data/feature_dict_BDAI_map.pkl"
 s_map_data = joblib.load(map_file_path)
-# å¢åŠ  ç—…äººID ä¸€åˆ—
+# Ôö¼Ó ²¡ÈËID Ò»ÁĞ
 s_map_data.insert(0, "encounter_id")
-# ä¿å­˜ä¸ºcsvæ–‡ä»¶ feature_dict_BDAI_map.pkl -> old_feature_map.csv
+# ±£´æÎªcsvÎÄ¼ş feature_dict_BDAI_map.pkl -> old_feature_map.csv
 feature_map_file = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/old_feature_map.csv"
 old_feature_map = pd.DataFrame(data=s_map_data)
 old_feature_map.to_csv(feature_map_file)
 my_logger.info(f"save feature map csv to - [{feature_map_file}]")
 
-# ç‰¹å¾æ€»æ•°é‡
+# ÌØÕ÷×ÜÊıÁ¿
 len_s_map_data = len(s_map_data)
 
-# traverse data of all years æ‰€æœ‰å¹´ä»½çš„æ•°æ®
+# traverse data of all years ËùÓĞÄê·İµÄÊı¾İ
 for year in range(start_year, end_year + 1):
     # init the total of samples whose stay was less than 1 day
     throw_idx = []
-    # set the input file and output file è¾“å…¥æ˜¯listæ ¼å¼ï¼Œè¾“å‡ºæ˜¯dataFrameæ ¼å¼
+    # set the input file and output file ÊäÈëÊÇlist¸ñÊ½£¬Êä³öÊÇdataFrame¸ñÊ½
     string_list_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/yuanborong/data/row_data_encounterId/{year}_string2list.pkl"
-    save_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/{year}_{pre_hour}h_list2dataframe.feather"
+    save_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old/{year}_{pre_hour}h_list2dataframe.feather"
 
-    # è¯»å–listæ ¼å¼çš„æ•°æ®
+    # ¶ÁÈ¡list¸ñÊ½µÄÊı¾İ
     list_data = joblib.load(string_list_file_path)
 
     # indexes of samples needed
     len_list_data = len(list_data)
     my_logger.info(f"year:{year} | len_list_data:{len_list_data}")
 
-    # init a variable to save all eligible cross-section sample åˆå§‹åŒ–æ•°æ®é›†æ ¼å¼
+    # init a variable to save all eligible cross-section sample ³õÊ¼»¯Êı¾İ¼¯¸ñÊ½
     all_sample = np.zeros((len_list_data, len_s_map_data))
 
-    # create shared_memory for all_sample åˆ›å»ºå…±äº«å†…å­˜å˜é‡ all_sample
+    # create shared_memory for all_sample ´´½¨¹²ÏíÄÚ´æ±äÁ¿ all_sample
     sm_all_sample = shared_memory.SharedMemory(name='all_sample', create=True, size=all_sample.nbytes)
     s_all_sample = np.ndarray(shape=all_sample.shape, dtype=np.float64, buffer=sm_all_sample.buf)
     s_all_sample[:, :] = all_sample[:, :]
@@ -299,7 +289,7 @@ for year in range(start_year, end_year + 1):
     pool.close()
     pool.join()
 
-    # init result (have not abandon < 24h samples)  ç»“æœè½¬åŒ–ä¸ºdataFrame
+    # init result (have not abandon < 24h samples)  ½á¹û×ª»¯ÎªdataFrame
     result = pd.DataFrame(s_all_sample, columns=s_map_data)
     my_logger.info(f"year:{year} | result_shape_before_drop:{result.shape}")
     # discard samples and transform numpy to dataframe

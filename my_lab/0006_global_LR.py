@@ -49,6 +49,20 @@ def get_train_test_data_2():
 
     return train_x, train_y, test_x, test_y
 
+
+def get_train_test_data_3():
+    train_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_train_24_df_rm1_norm1.feather"))
+    train_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_train_24_df_rm1_norm1.feather"))['Label']
+    test_x = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_x_test_24_df_rm1_norm1.feather"))
+    test_y = pd.read_feather(
+        os.path.join(DATA_SOURCE_PATH, "all_y_test_24_df_rm1_norm1.feather"))['Label']
+
+    return train_x, train_y, test_x, test_y
+
+
 def save_weight_importance_to_csv(weight_important, max_iter):
     weight_importance = [abs(i) for i in weight_important]
     weight_importance = [i / sum(weight_importance) for i in weight_importance]
@@ -86,11 +100,12 @@ if __name__ == '__main__':
     lr_max_iter = int(sys.argv[1])
     pre_hour = 24
     pool_nums = 25
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h/"
-    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/global_model/'
+    # DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h/"
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old/"
+    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h_old/global_model/'
     my_logger = MyLog().logger
 
-    train_x, train_y, test_x, test_y = get_train_test_data()
+    train_x, train_y, test_x, test_y = get_train_test_data_3()
 
     start_time = time.time()
     # pool = Pool(processes=pool_nums)

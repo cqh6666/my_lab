@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: gbk -*-
 """
 -------------------------------------------------
    File Name:     0008_add_psm_feature_name
@@ -25,7 +25,7 @@ def get_init_psm_file():
 
 
 def get_iter_psm_flie():
-    # æŸæ¬¡è¿­ä»£
+    # Ä³´Îµü´ú
     if is_transfer == 0:
         iter_psm_file_name = f'0008_24h_{iter_idx}_feature_weight_localboost70_no_transfer.csv'
     else:
@@ -42,7 +42,7 @@ def run():
         psm_file = get_iter_psm_flie()
 
     psm_csv_file = pd.read_csv(psm_file)
-    # ç‰¹å¾å­—å…¸
+    # ÌØÕ÷×Öµä
     remained_feature_explain = pd.read_csv(os.path.join(FEATURE_MAP_PATH, "remained_feature_explain.csv"))
 
     concat_psm_explain = pd.concat([psm_csv_file, remained_feature_explain], axis=1, ignore_index=True)

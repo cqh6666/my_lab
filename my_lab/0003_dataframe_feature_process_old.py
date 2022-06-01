@@ -4,11 +4,10 @@
 input:
     {year}_24h_list2dataframe.feather
 output:
-    all_24h_list2dataframe.feather
+    all_{pre_hour}h_df_rm1.feather
     new_feature_map.csv
-    all_24h_dataframe_999_feature_remove.feather
     24h_999_remained_feature_map.csv
-    {year}_24h_dataframe_999_feature_remove.feather
+    {year}_{pre_hour}h_df_rm1.feather
 """
 import pandas as pd
 import time
@@ -151,6 +150,13 @@ def collect_all_samples(source_path, save_path=None, file_name="list2dataframe.f
     :return: all_samples
     """
     assert (start_year < end_year)
+    # 默认与源路径相同
+    if save_path is None:
+        save_path = source_path
+    save_file_name = os.path.join(save_path, f"{pre_hour}h_all_{file_name}")
+    if os.path.exists(save_file_name):
+        my_logger.warning(f"exist {save_file_name}, will not collect all samples...")
+        return None
 
     all_sample = pd.DataFrame()
     for year in range(start_year, end_year + 1):
@@ -165,10 +171,6 @@ def collect_all_samples(source_path, save_path=None, file_name="list2dataframe.f
 
     my_logger.info(f"all sample of shape from {start_year} to {end_year}: {all_sample.shape}")
 
-    # 默认与源路径相同
-    if save_path is None:
-        save_path = source_path
-    save_file_name = os.path.join(save_path, f"{pre_hour}h_all_{file_name}")
     all_sample.to_feather(save_file_name)
     my_logger.info(f"save all samples to feather success! - [{save_file_name}]")
     return all_sample
@@ -224,6 +226,11 @@ def get_dataframe_by_year(file_name="list2dataframe.feather", pre_hour=24, start
     :param pre_hour: 小时
     :return:
     """
+    load_first_path = os.path.join(DATA_SOURCE_PATH, f"{start_year}_{pre_hour}h_df_rm1.feather")
+    if os.path.exists(load_first_path):
+        my_logger.warning(f"exist {load_first_path}, will not get dataframe in every year...")
+        return
+
     new_feature_file = os.path.join(FEATURE_MAP_PATH, "new_feature_map.csv")
     new_feature_map = pd.read_csv(new_feature_file, header=None).squeeze().tolist()
     remained_feature_name_path = os.path.join(FEATURE_MAP_PATH, f"{pre_hour}_999_remained_new_feature_map.csv")
@@ -237,7 +244,7 @@ def get_dataframe_by_year(file_name="list2dataframe.feather", pre_hour=24, start
         source_sample.columns = new_feature_map
 
         remained_source_sample = source_sample.loc[:, remained_feature_map]
-        save_file_name = os.path.join(DATA_SOURCE_PATH, f"{year}_{pre_hour}h_dataframe_999_feature_remove.feather")
+        save_file_name = os.path.join(DATA_SOURCE_PATH, f"{year}_{pre_hour}h_df_rm1.feather")
         remained_source_sample.to_feather(save_file_name)
         my_logger.info(f"save {year} samples to feather success... shape: {remained_source_sample.shape} | [{save_file_name}]")
 
@@ -252,6 +259,8 @@ def run(start_year=2010, end_year=2018, pre_hour=24):
     """
     # load data
     all_samples = collect_all_samples(source_path=DATA_SOURCE_PATH, file_name="list2dataframe.feather", start_year=start_year, end_year=end_year, pre_hour=pre_hour)
+    if all_samples is None:  # 说明已经合并过了
+        return
 
     # drop days
     all_samples.drop(['days'], axis=1, inplace=True)
@@ -277,11 +286,15 @@ def run(start_year=2010, end_year=2018, pre_hour=24):
     remained_feature_name = all_samples.columns
     remained_feature_name_df = pd.DataFrame({"remained_feature": remained_feature_name})
     remained_feature_name_path = os.path.join(FEATURE_MAP_PATH, f"{pre_hour}_999_remained_new_feature_map.csv")
-    remained_feature_name_df.to_csv(remained_feature_name_path, index=False, header=0)
-    my_logger.info(f"999_remained_feature_len:{len(remained_feature_name)},save to - [{remained_feature_name_path}]")
+    if os.path.exists(remained_feature_name_path):
+        my_logger.warning(f"exist {remained_feature_name_path}, will not save to csv...")
+        return
+    else:
+        remained_feature_name_df.to_csv(remained_feature_name_path, index=False, header=0)
+        my_logger.info(f"999_remained_feature_len:{len(remained_feature_name)},save to - [{remained_feature_name_path}]")
 
     # save all data
-    save_file = os.path.join(DATA_SOURCE_PATH, f"all_{pre_hour}h_dataframe_999_feature_remove.feather")
+    save_file = os.path.join(DATA_SOURCE_PATH, f"all_{pre_hour}h_df_rm1.feather")
     all_samples.to_feather(save_file)
     my_logger.info(f"save all_samples to feather - [{save_file}]")
 
@@ -292,9 +305,9 @@ if __name__ == '__main__':
     pre_hour = 24
     # csv_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.csv'
     # pickle_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.pkl'
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h/"
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old/"
     FEATURE_MAP_PATH = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/"
     my_logger = MyLog().logger
 
-    # run(pre_hour=24)
+    run(pre_hour=24)
     get_dataframe_by_year(pre_hour=24)
