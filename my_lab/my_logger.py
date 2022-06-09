@@ -17,7 +17,7 @@ import logging
 from time import strftime
 
 # 保存路径
-log_file_name = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/cqh_{strftime("%Y-%m-%d")}.log'
+log_file_name = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/log_by_date/cqh_{strftime("%Y-%m-%d")}.log'
 # log_file_name = f'./log/cqh_{strftime("%Y-%m-%d")}.log'
 # 设置日志格式#和时间格式
 FMT = '%(asctime)s %(filename)s [line:%(lineno)d] %(levelname)s: %(message)s'
@@ -33,7 +33,7 @@ class MyLog(object):
         self.logger.addHandler(self.get_file_handler(self.log_filename))
         self.logger.addHandler(self.get_console_handler())
         # 设置日志的默认级别
-        self.logger.setLevel(logging.INFO)
+        self.logger.setLevel(logging.DEBUG)
 
     # 输出到文件handler的函数定义
     def get_file_handler(self, filename):

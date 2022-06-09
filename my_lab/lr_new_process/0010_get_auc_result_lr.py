@@ -77,7 +77,7 @@ def cal_auc_result():
     :return:
     """
     result = pd.read_csv(all_result_file)
-    y_test, y_pred = result['real'], result['proba']
+    y_test, y_pred = result['real'], result['prob']
     score = roc_auc_score(y_test, y_pred)
     save_result_file(score)
 
@@ -111,14 +111,18 @@ def process_and_plot_result():
 if __name__ == '__main__':
     # input params
     learned_metric_iteration = str(sys.argv[1])
-    is_transfer = int(sys.argv[2])
+
+    is_transfer = 0
+    pre_hour = 24
 
     logger = MyLog().logger
 
     # 是否迁移，对应不同路径
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
-    CSV_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_{transfer_flag}/'
-    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_auc_{transfer_flag}/'
+    root_dir = f"{pre_hour}h_old"
+
+    CSV_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_result_{transfer_flag}_liblinear/'
+    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_auc_{transfer_flag}/'
 
     # 根据迭代次数查找到所有的分批量（每1500个）的预测概率csv文件夹
     flag = f"0009_{learned_metric_iteration}_"

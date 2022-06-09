@@ -27,7 +27,7 @@ def check_psm_all_file_list(start_idx, max_idx, step_idx):
     """获得psm不同迭代的所有csv文件,确保这些文件都是存在的，并返回所有文件名列表"""
 
     psm_file_name_list = []
-    for cur_idx in range(start_idx, max_idx, step_idx):
+    for cur_idx in range(start_idx, max_idx + 1, step_idx):
         psm_file_name = f"0008_24h_{cur_idx}_{psm_flag}.csv"
         cur_psm_file = os.path.join(PSM_SAVE_PATH, psm_file_name)
         if not os.path.exists(cur_psm_file):
@@ -51,7 +51,7 @@ def get_psm_dist(start_idx, max_idx, step_idx, dist_type="cosine"):
     psm_weight = pd.read_csv(os.path.join(INIT_PSM_PATH, init_psm_file)).squeeze()
     all_weight = [psm_weight]
 
-    for cur_idx in range(start_idx, max_idx, step_idx):
+    for cur_idx in range(start_idx, max_idx + 1, step_idx):
         file_flag = f"0008_24h_{cur_idx}_"
         psm_file_name = os.path.join(PSM_SAVE_PATH, f"{file_flag}{psm_flag}.csv")
         cur_weight = pd.read_csv(psm_file_name).squeeze()
@@ -63,18 +63,18 @@ def get_psm_dist(start_idx, max_idx, step_idx, dist_type="cosine"):
         return
 
     if dist_type == "cosine":
-        save_file_name = os.path.join(TEMP_RESULT_PATH, f"psm_{dist_type}_by_iter_{transfer_flag}-{start_idx}_{max_idx}_{step_idx}.csv")
+        save_file_name = os.path.join(TEMP_RESULT_PATH, f"lr_old_psm_{dist_type}_by_iter_{transfer_flag}-{start_idx}_{max_idx}_{step_idx}.csv")
         pd.DataFrame(cosine_similarity(all_weight)).to_csv(save_file_name)
         my_logger.info(f"success save cosine similarity by psm csv! {save_file_name}")
     elif dist_type == "euclidean":
-        save_file_name = os.path.join(TEMP_RESULT_PATH, f"psm_{dist_type}_by_iter_{transfer_flag}-{start_idx}_{max_idx}_{step_idx}.csv")
+        save_file_name = os.path.join(TEMP_RESULT_PATH, f"lr_old_psm_{dist_type}_by_iter_{transfer_flag}-{start_idx}_{max_idx}_{step_idx}.csv")
         pd.DataFrame(euclidean_distances(all_weight)).to_csv(save_file_name)
         my_logger.info(f"success save euclidean distances by psm csv! {save_file_name}")
 
 
 if __name__ == '__main__':
 
-    max_idx = 15
+    max_idx = 20
     step_idx = 1
     pre_hour = 24
     is_transfer = int(sys.argv[1])
@@ -83,11 +83,11 @@ if __name__ == '__main__':
 
     root_dir = f"{pre_hour}h_old"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm_liblinear/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
     INIT_PSM_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
     TEMP_RESULT_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/temp_result/"
 
-    init_psm_file = "0006_24h_global_lr_400.csv"
+    init_psm_file = "0006_24h_global_lr_500.csv"
 
     my_logger = MyLog().logger
 

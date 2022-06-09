@@ -29,9 +29,10 @@ def get_train_info(file_name, file_type='csv', file_flag='yuan'):
     train_row = train_df.shape[0]
     mean_list = train_df.mean().tolist()
     std_list = train_df.std().tolist()
-    zero_counts = train_df.apply(lambda x: x.value_counts().get(0, 0), axis=0).tolist()
 
+    zero_counts = train_df.apply(lambda x: x.value_counts().get(0, 0), axis=0).tolist()
     zero_counts_percent = [zero / train_row for zero in zero_counts]
+
     columns = train_df.columns.tolist()
 
     result = pd.DataFrame({"mean": mean_list, "std": std_list, "zero_counts": zero_counts, "zero_percent": zero_counts_percent}, index=columns)

@@ -10,6 +10,9 @@ from gc import collect
 import warnings
 import sys
 import time
+
+from sklearn.preprocessing import StandardScaler
+
 from my_logger import MyLog
 from sklearn.linear_model import LogisticRegression
 warnings.filterwarnings('ignore')
@@ -23,25 +26,34 @@ def personalized_modeling(pre_data, idx, x_test):
     similar_rank = pd.DataFrame()
 
     similar_rank['data_id'] = train_x.index.tolist()
-    similar_rank['Distance'] = (abs((train_x - pre_data) * feature_weight)).sum(axis=1)
+    similar_rank['distance'] = (abs((train_x - pre_data) * feature_weight)).sum(axis=1)
 
-    similar_rank.sort_values('Distance', inplace=True)
+    similar_rank.sort_values('distance', inplace=True)
     similar_rank.reset_index(drop=True, inplace=True)
     select_id = similar_rank.iloc[:len_split, 0].values
 
     select_train_x = train_x.iloc[select_id, :]
     select_train_y = train_y.iloc[select_id]
-    fit_train = select_train_x
-    fit_test = x_test
+
+    if is_transfer == 1:
+        init_weight = global_init_normalize_weight
+        fit_train = select_train_x * init_weight
+        fit_test = x_test * init_weight
+    else:
+        fit_train = select_train_x
+        fit_test = x_test
 
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
 
-    lr_local = LogisticRegression(solver='liblinear')
+    ss = StandardScaler(with_std=True, with_mean=True)
+    fit_train = ss.fit_transform(fit_train)
+    fit_test = ss.fit_transform(fit_test)
+
+    lr_local = LogisticRegression(solver="lbfgs", n_jobs=1, max_iter=local_lr_iter)
     lr_local.fit(fit_train, select_train_y, sample_ki)
 
     y_predict = lr_local.predict_proba(fit_test)[:, 1]
-    my_logger.info(f"[{idx}] - y_predict: {y_predict}")
     global_lock.acquire()
     test_result.loc[idx, 'prob'] = y_predict
     global_lock.release()
@@ -56,10 +68,10 @@ def get_feature_weight_list(metric_iter):
     :param metric_iter: 迭代次数（str类型）
     :return:
     """
-    if int(metric_iter) == 0:
-        feature_importance_file = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr.csv")
+    if metric_iter == 0:
+        feature_importance_file = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
     else:
-        weight_file_name = f"0008_{pre_hour}h_{metric_iter}_psm_no_transfer.csv"
+        weight_file_name = f"0008_{pre_hour}h_{metric_iter}_psm_{transfer_flag}.csv"
         feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
 
     f_weight = pd.read_csv(feature_importance_file)
@@ -73,37 +85,38 @@ def get_train_test_data():
     :return:
     """
     train_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+        os.path.join(DATA_SOURCE_PATH, f"all_x_train_{pre_hour}_df_rm1_norm1.feather"))
     train_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_y_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+        os.path.join(DATA_SOURCE_PATH, f"all_y_train_{pre_hour}_df_rm1_norm1.feather"))['Label']
     test_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_x_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+        os.path.join(DATA_SOURCE_PATH, f"all_x_test_{pre_hour}_df_rm1_norm1.feather"))
     test_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+        os.path.join(DATA_SOURCE_PATH, f"all_y_test_{pre_hour}_df_rm1_norm1.feather"))['Label']
 
     return train_x, train_y, test_x, test_y
-
-
-def params_logger_info_show():
-    my_logger.warning(
-        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:no_transfer")
 
 
 if __name__ == '__main__':
 
     start_idx = int(sys.argv[1])
     end_idx = int(sys.argv[2])
-    learned_metric_iteration = str(sys.argv[3])
+    is_transfer = int(sys.argv[3])
+    learned_metric_iteration = int(sys.argv[4])
+
+    transfer_flag = "no_transfer" if is_transfer == 0 else "transfer"
 
     pre_hour = 24
     select_ratio = 0.1
     m_sample_weight = 0.01
     pool_nums = 20
+    global_lr_iter = 500
+    local_lr_iter = 100
 
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
-    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/no_transfer_psm/'
-    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/test_result_no_transfer/'
+    root_dir = f"{pre_hour}h_old"
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
+    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_result_{transfer_flag}/'
 
     my_logger = MyLog().logger
 
@@ -114,11 +127,17 @@ if __name__ == '__main__':
     end_idx = final_idx if end_idx > final_idx else end_idx
     len_split = int(train_x.shape[0] * select_ratio)  # the number of selected train data
 
+    # 全局迁移策略 需要用到初始的csv
+    if is_transfer == 1:
+        init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
+        global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
+
     # 读取迭代了k次的相似性度量csv文件
     feature_weight = get_feature_weight_list(metric_iter=learned_metric_iteration)
 
     # 显示参数信息
-    params_logger_info_show()
+    my_logger.warning(
+        f"[iter params] - global_lr:{global_lr_iter}, local_lr:{local_lr_iter}, learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:{transfer_flag}")
 
     # init test result
     test_result = pd.DataFrame(columns=['real', 'prob'])
@@ -133,12 +152,9 @@ if __name__ == '__main__':
     for test_idx in range(start_idx, end_idx):
         pre_data_select = test_x.loc[test_idx, :]
         x_test_select = test_x.loc[[test_idx], :]
-
-        # execute multi threads
         thread = pool.submit(personalized_modeling, pre_data_select, test_idx, x_test_select)
         thread_list.append(thread)
 
-    # wait for all threads completing
     wait(thread_list, return_when=ALL_COMPLETED)
     collect()
 
@@ -147,7 +163,7 @@ if __name__ == '__main__':
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_prob_no_transfer.csv')
+        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_prob_{transfer_flag}.csv')
         test_result.to_csv(test_result_csv, index=False)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:
