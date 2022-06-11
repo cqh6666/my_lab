@@ -110,24 +110,24 @@ def process_and_plot_result():
 
 if __name__ == '__main__':
     # input params
-    learned_metric_iteration = str(sys.argv[1])
+    is_transfer = int(sys.argv[1])
+    learned_metric_iteration = str(sys.argv[2])
 
-    is_transfer = 0
     pre_hour = 24
 
     logger = MyLog().logger
 
     # 是否迁移，对应不同路径
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
-    root_dir = f"{pre_hour}h_old"
+    root_dir = f"{pre_hour}h"
 
-    CSV_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_result_{transfer_flag}_liblinear/'
+    CSV_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_result_{transfer_flag}/'
     AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_auc_{transfer_flag}/'
 
     # 根据迭代次数查找到所有的分批量（每1500个）的预测概率csv文件夹
     flag = f"0009_{learned_metric_iteration}_"
     # 多批量整合而成的整体csv文件名
-    all_prob_csv_name = f'{flag}all_proba_{transfer_flag}.csv'
+    all_prob_csv_name = f'{flag}all_prob_{transfer_flag}.csv'
     # 先合并再计算auc
     all_result_file = os.path.join(AUC_RESULT_PATH, all_prob_csv_name)
     # 将最终的auc结果进行保存

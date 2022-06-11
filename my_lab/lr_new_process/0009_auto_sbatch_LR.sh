@@ -10,7 +10,7 @@ end=$step
 
 while [ $start -lt $final ]
 do
-  sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_lr_old/0009_test_KL_use_LR_old.sh ${start} ${end} ${is_transfer} ${iter}
+  sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0009_test_KL_use_LR.sh ${start} ${end} ${is_transfer} ${iter}
   let start=start+$step
   let end=end+$step
 done

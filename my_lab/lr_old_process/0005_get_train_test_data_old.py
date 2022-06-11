@@ -53,7 +53,8 @@ def save_dataFrame_to_feather(x_data, y_data, file_flag):
 if __name__ == '__main__':
     pre_hour = 24
 
-    DATA_SOURCE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old/'
+    root_dir = f"{pre_hour}h_old2"
+    DATA_SOURCE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/'
     miss_norm_file_name = f"{pre_hour}_df_rm1_norm1"
     my_logger = MyLog().logger
     get_data_from_feather_to_save()

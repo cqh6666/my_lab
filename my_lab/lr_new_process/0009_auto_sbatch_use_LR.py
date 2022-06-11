@@ -17,8 +17,7 @@ start_iter = int(sys.argv[2])
 
 transfer_flag = "no_transfer" if is_transfer == 0 else "transfer"
 
-root_dir = f"{pre_hour}h_old2"
-PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
+PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/{transfer_flag}_psm/'
 
 iteration_idx = start_iter
 
@@ -29,7 +28,7 @@ while iteration_idx <= 120:
         my_logger.info(f"{psm_no_transfer_file_name} exist, start sbatch 0009_auto_sbatch_LR.sh {is_transfer} {iteration_idx}")
         time.sleep(20)
         os.system(
-            f'sh /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_lr_old/0009_auto_sbatch_LR.sh {is_transfer} {iteration_idx} ')
+            f'sh /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0009_auto_sbatch_LR.sh {is_transfer} {iteration_idx} ')
         iteration_idx += step
     else:
         time.sleep(30)

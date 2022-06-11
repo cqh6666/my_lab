@@ -15,7 +15,7 @@ import pandas as pd
 import os
 
 
-def get_data_describe(train_data, result_file):
+def get_data_describe(train_data):
     data_describe = train_data.describe().T
     data_describe.index = train_data.columns
 
@@ -25,29 +25,25 @@ def get_data_describe(train_data, result_file):
     zero_df = pd.DataFrame({"zero_percent": zero_counts_percent}, index=train_data.columns)
     data_describe = pd.concat([data_describe, zero_df], axis=1)
 
-    file_name = os.path.join(SAVE_PATH, result_file)
-    data_describe.to_csv(file_name)
-    print("save csv success!", file_name)
+    data_describe.to_csv(save_file_name)
+    print("save csv success!", save_file_name)
     print(data_describe.head())
 
 
 if __name__ == '__main__':
 
     pre_hour = 24
-    DATA_SOURCE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h/'
-    SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/code/'
+    root_dir = f"{pre_hour}h_old2"
+    DATA_SOURCE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/'
+
+    # 训练集数据
     file_flag = f"{pre_hour}_df_rm1_norm1"
-    result_file = f"all_data_describe_info_{file_flag}.csv"
-    # all_24h_norm_dataframe_999_miss_medpx_max2dist.feather
+    train_x = pd.read_feather(os.path.join(DATA_SOURCE_PATH, f"all_x_train_{file_flag}.feather"))
 
+    result_file = f"train_x_describe_info_{file_flag}.csv"
+    save_file_name = os.path.join(DATA_SOURCE_PATH, result_file)
 
-    train_x = pd.read_feather(os.path.join(DATA_SOURCE_PATH, f"all_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
-    get_data_describe(train_x, result_file)
+    get_data_describe(train_x)
     print(train_x.info)
 
-    t_data_file = "/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/24/all_24h_snap1_rm2_miss2_norm1.feather"
-    t_result_file = f"all_data_describe_info_snap1_rm2_miss2_norm1.csv"
-    t_data = pd.read_feather(t_data_file)
-    get_data_describe(t_data, t_result_file)
-    print(t_data.info)
 

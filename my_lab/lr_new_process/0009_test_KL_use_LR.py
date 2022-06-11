@@ -65,7 +65,7 @@ def get_feature_weight_list(metric_iter):
     :return:
     """
     if metric_iter == 0:
-        feature_importance_file = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_liblinear_{global_lr_iter}.csv")
+        feature_importance_file = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
     else:
         weight_file_name = f"0008_{pre_hour}h_{metric_iter}_psm_{transfer_flag}.csv"
         feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
@@ -81,13 +81,13 @@ def get_train_test_data():
     :return:
     """
     train_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, f"all_x_train_{pre_hour}_df_rm1_norm1.feather"))
+        os.path.join(DATA_SOURCE_PATH, f"all_x_train_{pre_hour}h_norm_dataframe_999_miss_medpx_max2dist.feather"))
     train_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, f"all_y_train_{pre_hour}_df_rm1_norm1.feather"))['Label']
+        os.path.join(DATA_SOURCE_PATH, f"all_y_train_{pre_hour}h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
     test_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, f"all_x_test_{pre_hour}_df_rm1_norm1.feather"))
+        os.path.join(DATA_SOURCE_PATH, f"all_x_test_{pre_hour}h_norm_dataframe_999_miss_medpx_max2dist.feather"))
     test_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, f"all_y_test_{pre_hour}_df_rm1_norm1.feather"))['Label']
+        os.path.join(DATA_SOURCE_PATH, f"all_y_test_{pre_hour}h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
 
     return train_x, train_y, test_x, test_y
 
@@ -106,9 +106,9 @@ if __name__ == '__main__':
     m_sample_weight = 0.01
     pool_nums = 20
     global_lr_iter = 400
-    local_lr_iter = 100
+    local_lr_iter = 50
 
-    root_dir = f"{pre_hour}h_old2"
+    root_dir = f"{pre_hour}h"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
     PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
@@ -124,7 +124,8 @@ if __name__ == '__main__':
     len_split = int(train_x.shape[0] * select_ratio)  # the number of selected train data
 
     # 全局迁移策略 需要用到初始的csv
-    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_liblinear_{global_lr_iter}.csv")
+
+    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
     global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 
     # 读取迭代了k次的相似性度量csv文件

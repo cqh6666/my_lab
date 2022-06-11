@@ -44,9 +44,9 @@ def personalized_modeling(pre_data, idx, x_test):
     similar_rank = pd.DataFrame()
 
     similar_rank['data_id'] = train_x.index.tolist()
-    similar_rank['Distance'] = (abs((train_x - pre_data) * feature_weight)).sum(axis=1)
+    similar_rank['distance'] = (abs((train_x - pre_data) * feature_weight)).sum(axis=1)
 
-    similar_rank.sort_values('Distance', inplace=True)
+    similar_rank.sort_values('distance', inplace=True)
     similar_rank.reset_index(drop=True, inplace=True)
     select_id = similar_rank.iloc[:len_split, 0].values
 

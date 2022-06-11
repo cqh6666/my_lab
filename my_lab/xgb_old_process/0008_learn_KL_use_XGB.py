@@ -2,23 +2,40 @@
 """
 多线程跑程序
 """
-from threading import Lock
+import threading
 import time
 import numpy as np
 import pandas as pd
 from random import shuffle
+import xgboost as xgb
 import warnings
 import os
-
-from sklearn.preprocessing import StandardScaler
-
 from my_logger import MyLog
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import sys
 from gc import collect
-from sklearn.linear_model import LogisticRegression
-
+import pickle
 warnings.filterwarnings('ignore')
+
+
+def get_local_xgb_para():
+    """personal xgb para"""
+    params = {
+        'booster': 'gbtree',
+        'max_depth': 11,
+        'min_child_weight': 7,
+        'subsample': 1,
+        'colsample_bytree': 0.7,
+        'eta': 0.05,
+        'objective': 'binary:logistic',
+        'nthread': xgb_thread_num,
+        'verbosity': 0,
+        'eval_metric': 'logloss',
+        'seed': 998,
+        'tree_method': 'hist'
+    }
+    num_boost_round = xgb_boost_num
+    return params, num_boost_round
 
 
 def learn_similarity_measure(pre_data, true, I_idx, X_test):
@@ -30,59 +47,44 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     :param X_test: dataFrame格式的目标患者特征集
     :return:
     """
-    select_start_time = time.time()
-
-    global train_rank_x
-    global normalize_weight
-    global train_rank_y
-    global global_init_normalize_weight
+    # lsm_start_time = time.time()
 
     similar_rank = pd.DataFrame()
-    similar_rank['data_id'] = train_rank_x.index.tolist()
-    similar_rank['distance'] = (abs((train_rank_x - pre_data) * normalize_weight)).sum(axis=1)
 
-    similar_rank.sort_values('distance', inplace=True)
+    similar_rank['data_id'] = train_rank_x.index.tolist()
+    similar_rank['Distance'] = (abs((train_rank_x - pre_data) * normalize_weight)).sum(axis=1)
+
+    similar_rank.sort_values('Distance', inplace=True)
     similar_rank.reset_index(drop=True, inplace=True)
     # 选出相似性前len_split个样本 返回numpy格式
     select_id = similar_rank.iloc[:len_split, 0].values
 
-    # 10%的数据 个性化建模
     x_train = train_rank_x.iloc[select_id, :]
     y_train = train_rank_y.iloc[select_id]
+    fit_train = x_train
+    fit_test = X_test
 
-    select_end_time = time.time()
-
-    if is_transfer == 1:
-        init_weight = global_init_normalize_weight.squeeze().tolist()
-        fit_train = x_train * init_weight
-        fit_test = X_test * init_weight
-    else:
-        fit_train = x_train
-        fit_test = X_test
-
-    # 相似样本对应的权重，越相似权重越高
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
+    d_train_local = xgb.DMatrix(fit_train, label=y_train, weight=sample_ki)
+    params, num_boost_round = get_local_xgb_para()
 
-    ss = StandardScaler(with_std=True, with_mean=True)
-    fit_train = ss.fit_transform(fit_train)
-    fit_test = ss.fit_transform(fit_test)
+    xgb_local = xgb.train(params=params,
+                          dtrain=d_train_local,
+                          num_boost_round=num_boost_round,
+                          verbose_eval=False,
+                          xgb_model=xgb_model)
 
-    fit_time = time.time()
+    d_test_local = xgb.DMatrix(fit_test)
+    predict_prob = xgb_local.predict(d_test_local)
 
-    lr_local = LogisticRegression(solver="liblinear", max_iter=local_lr_iter)
-    lr_local.fit(fit_train, y_train, sample_ki)
-    y_predict = lr_local.predict_proba(fit_test)[:, 1]
-
-    train_end_time = time.time()
     # len_split长度 - 1长度 = 自动伸展为len_split  代表每个特征的差异
     x_train = x_train - pre_data
     x_train = abs(x_train)
     # 特征差异的均值
     mean_r = np.mean(x_train)
-    y = abs(true - y_predict)
+    y = abs(true - predict_prob)
 
-    write_time = time.time()
     global iteration_data
     global iteration_y
     global lock
@@ -96,66 +98,72 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     finally:
         lock.release()
 
-    run_time = time.time()
-    select_cost_time = round(select_end_time-select_start_time, 2)
-    fit_cost_time = round(fit_time - select_end_time, 2)
-    train_cost_time = round(train_end_time - fit_time, 2)
-    write_cost_time = round(run_time - write_time, 2)
-    all_cost_time = round(run_time - select_start_time, 2)
-    my_logger.info(f"[{I_idx}] - cost time: {select_cost_time}, {fit_cost_time}, {train_cost_time}, {write_cost_time} s - [{all_cost_time}] s")
+    # run_time = round(time.time() - lsm_start_time, 2)
+    # current_thread = threading.current_thread().getName()
+    # my_logger.info(
+    #     f"pid:{os.getpid()} | thread:{current_thread} | time:{run_time} s")
 
 
 if __name__ == '__main__':
 
+    pre_hour = 24
+    root_dir = f"{pre_hour}h_old2"
+
     is_transfer = int(sys.argv[1])
     init_iteration = int(sys.argv[2])
 
-    pre_hour = 24
-    root_dir = f"{pre_hour}h_old"
-    transfer_flag = "no_transfer" if is_transfer == 0 else "transfer"
+    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
+    cur_iteration = init_iteration + 1
 
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
-    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"
+    XGB_MODEL_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}/'
 
+    # 训练集的X和Y
+    key_component = f"{pre_hour}_df_rm1_norm1"
     train_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, f"all_x_train_{pre_hour}_df_rm1_norm1.feather"))
+        os.path.join(DATA_SOURCE_PATH, f"all_x_train_{key_component}.feather"))
     train_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, f"all_y_train_{pre_hour}_df_rm1_norm1.feather"))['Label']
+        os.path.join(DATA_SOURCE_PATH, f"all_y_train_{key_component}.feather"))['Label']
 
+    # ----- work space -----
+    # 引入自定义日志类
     my_logger = MyLog().logger
 
     # ----- similarity learning para -----
-    # last and current iteration
-    # every {step} iterations, updates normalize_weight in similarity learning
-    cur_iteration = init_iteration + 1
     step = 1
     l_rate = 0.00001
     select_rate = 0.1
     regularization_c = 0.05
     m_sample_weight = 0.01
 
-    # 不迁移的话设置为20+50
-    pool_nums = 25
+    xgb_thread_num = 1
+    # 做迁移时才会有这个全局模型参数
+    glo_tl_boost_num = 500
+    xgb_boost_num = 50
+    pool_nums = 10
     n_personal_model_each_iteration = 1000
-    global_lr_iter = 400
-    local_lr_iter = 50
+
+    # 迁移模型
+    if is_transfer == 1:
+        xgb_model_file = os.path.join(XGB_MODEL_PATH, f"0007_{pre_hour}h_global_xgb_boost{glo_tl_boost_num}.pkl")
+        xgb_model = pickle.load(open(xgb_model_file, "rb"))
+    else:
+        xgb_model = None
 
     my_logger.warning(
-        f"[params] - is_transfer:{is_transfer}, init_iter:{init_iteration}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}, global_lr:{global_lr_iter}, local_lr:{local_lr_iter}")
+        f"[params] - transfer_flag:{transfer_flag}, init_iter:{init_iteration}, xgb_boost_num:{xgb_boost_num}, pool_nums:{pool_nums}, personal_model:{n_personal_model_each_iteration}")
 
-    # 全局迁移策略 需要用到初始的csv
-    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
-    global_init_normalize_weight = pd.read_csv(init_weight_file_name)
-
-    # ----- init weight -----
+    # ----- init weight  | dataFrame 格式，有header行，没index索引列-----
     if init_iteration == 0:
-        normalize_weight = global_init_normalize_weight
+        # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
+        file_name = '0007_24h_global_xgb_feature_weight_boost500.csv'
+        normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
     else:
-        wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_{transfer_flag}.csv")
-        normalize_weight = pd.read_csv(wi_file_name)
+        file_name = f'0008_{pre_hour}h_{init_iteration}_psm_boost{xgb_boost_num}{transfer_flag}.csv'
+        normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
 
-    lock = Lock()
+    lock = threading.Lock()
     my_logger.warning("start iteration ... ")
 
     # ----- iteration -----
@@ -200,7 +208,7 @@ if __name__ == '__main__':
 
         run_time = round(time.time() - pg_start_time, 2)
         my_logger.warning(
-            f"iter idx:{iteration_idx} | build {n_personal_model_each_iteration} models need: {run_time} s")
+            f"iter idx:{iteration_idx} | build {n_personal_model_each_iteration} models need: {run_time}s")
 
         # ----- update normalize weight -----
         # 1000 * columns     columns
@@ -223,14 +231,16 @@ if __name__ == '__main__':
 
         new_ki_map = list(map(lambda x: x if x > 0 else 0, new_ki))
         # list -> dataframe
-        normalize_weight = pd.DataFrame({f'Ma_update_{iteration_idx}': new_ki_map})
+        normalize_weight = pd.DataFrame(
+            {'Ma_update_{}'.format(iteration_idx): new_ki_map})
 
         try:
-            wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{iteration_idx}_psm_{transfer_flag}.csv")
-            # normalize_weight.to_csv(wi_file_name, index=False)
-            my_logger.warning(f"iter idx: {iteration_idx} | save {wi_file_name} success!")
+            # if iteration_idx % step == 0:
+            file_name = f'0008_{pre_hour}h_{iteration_idx}_psm_boost{xgb_boost_num}_{transfer_flag}.csv'
+            normalize_weight.to_csv(os.path.join(PSM_SAVE_PATH, file_name), index=False)
+            my_logger.warning(f"iter idx: {iteration_idx} | save {file_name} success!")
         except Exception as err:
-            my_logger.error(f"iter idx: {iteration_idx} | save error!")
+            my_logger.error(f"iter idx: {iteration_idx} | save {file_name} error!")
             raise err
 
         del iteration_data, iteration_y, new_ki

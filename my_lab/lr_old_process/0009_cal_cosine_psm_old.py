@@ -83,7 +83,7 @@ if __name__ == '__main__':
 
     root_dir = f"{pre_hour}h_old"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # ÑµÁ·¼¯µÄXºÍY
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm_liblinear/'
     INIT_PSM_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
     TEMP_RESULT_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/temp_result/"
 

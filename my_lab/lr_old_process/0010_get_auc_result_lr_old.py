@@ -121,8 +121,8 @@ if __name__ == '__main__':
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     root_dir = f"{pre_hour}h_old"
 
-    CSV_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_result_{transfer_flag}/'
-    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_auc_{transfer_flag}/'
+    CSV_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_result_{transfer_flag}_liblinear/'
+    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_auc_{transfer_flag}_liblinear/'
 
     # 根据迭代次数查找到所有的分批量（每1500个）的预测概率csv文件夹
     flag = f"0009_{learned_metric_iteration}_"

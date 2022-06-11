@@ -80,11 +80,11 @@ def remap_feature_name(old_feature_list, is_save=True):
 
     if is_save:
         new_feature_name_df = pd.DataFrame({'new_feature': newFeatureName})
-        new_feature_name_df.to_csv(os.path.join(FEATURE_MAP_PATH, "new_feature_map.csv"), index=False, header=0)
+        new_feature_name_df.to_csv(os.path.join(DATA_SOURCE_PATH, "new_feature_map.csv"), index=False, header=0)
 
         # 保存新旧特征映射
         old_and_new_feature_name_df = pd.DataFrame({'old_feature': featureNames, 'new_feature': newFeatureName})
-        old_and_new_feature_name_df.to_csv(os.path.join(FEATURE_MAP_PATH, "old_and_new_feature_map.csv"), index=False)
+        old_and_new_feature_name_df.to_csv(os.path.join(DATA_SOURCE_PATH, "old_and_new_feature_map.csv"), index=False)
         my_logger.info("save old and new feature map csv...")
 
     return newFeatureName
@@ -131,18 +131,16 @@ def compare_high_rate_missing_feature(samples, rate_list=None):
 
     missing_feature_nums = []
     for rate in rate_list:
-        len_feature = len(get_high_missing_feature(samples,rate))
+        len_feature = len(get_high_missing_feature(samples, rate))
         missing_feature_nums.append(len_feature)
 
     my_logger.info(f"rate_list:{rate_list} | missing_feature_nums:{missing_feature_nums}")
     return missing_feature_nums
 
 
-def collect_all_samples(source_path, save_path=None, file_name="list2dataframe.feather", pre_hour=24, start_year=2010, end_year=2018):
+def collect_all_samples(file_name="list2dataframe.feather", start_year=2010, end_year=2018):
     """
     将所有年份的数据全部收集成为一个文件
-    :param source_path: 读取路径
-    :param save_path: 保存路径
     :param file_name: 文件名
     :param pre_hour: 提前小时
     :param start_year: 开始年份
@@ -150,19 +148,16 @@ def collect_all_samples(source_path, save_path=None, file_name="list2dataframe.f
     :return: all_samples
     """
     assert (start_year < end_year)
-    # 默认与源路径相同
-    if save_path is None:
-        save_path = source_path
-    save_file_name = os.path.join(save_path, f"{pre_hour}h_all_{file_name}")
+
+    save_file_name = os.path.join(DATA_SOURCE_PATH, f"{pre_hour}h_all_{file_name}")
     if os.path.exists(save_file_name):
         my_logger.warning(f"exist {save_file_name}, will not collect all samples...")
-        return None
+        return pd.read_feather(save_file_name)
 
     all_sample = pd.DataFrame()
     for year in range(start_year, end_year + 1):
         try:
-            assert source_path is not None
-            load_df_path = os.path.join(source_path, f"{year}_{pre_hour}h_{file_name}")
+            load_df_path = os.path.join(DATA_SOURCE_PATH, f"{year}_{pre_hour}h_{file_name}")
             my_logger.info(f"load source samples... - [{load_df_path}]")
             all_sample = pd.concat([all_sample, pd.read_feather(load_df_path)], axis=0)
             all_sample.reset_index(drop=True, inplace=True)
@@ -174,47 +169,6 @@ def collect_all_samples(source_path, save_path=None, file_name="list2dataframe.f
     all_sample.to_feather(save_file_name)
     my_logger.info(f"save all samples to feather success! - [{save_file_name}]")
     return all_sample
-
-
-def compare_file_type(feather, csv, pickle):
-    """
-    比较不同保存格式的读写时间和文件大小
-    :param feather:
-    :param csv:
-    :param pickle:
-    :return:
-    """
-    feather_size = hum_convert(os.path.getsize(feather))
-    csv_size = hum_convert(os.path.getsize(csv))
-    pickle_size = hum_convert(os.path.getsize(pickle))
-    my_logger.info(f"feather size: {feather_size}")
-    my_logger.info(f"csv size: {csv_size}")
-    my_logger.info(f"pickle size: {pickle_size}")
-
-    start_time = time.time()
-    pd.read_feather(feather)
-    feather_time = time.time()
-    pd.read_csv(csv)
-    csv_time = time.time()
-    pd.read_pickle(pickle)
-    pickle_time = time.time()
-    my_logger.info(f"load feather time: {feather_time - start_time}")
-    my_logger.info(f"load csv time: {csv_time - feather_time}")
-    my_logger.info(f"load pickle time: {pickle_time - csv_time}")
-
-
-def hum_convert(value):
-    """
-    自动换算为比较恰当的文件大小单位
-    :param value:
-    :return:
-    """
-    units = ["B", "KB", "MB", "GB", "TB", "PB"]
-    size = 1024.0
-    for i in range(len(units)):
-        if (value / size) < 1:
-            return "%.2f%s" % (value, units[i])
-        value = value / size
 
 
 def get_dataframe_by_year(file_name="list2dataframe.feather", pre_hour=24, start_year=2010, end_year=2018):
@@ -231,9 +185,9 @@ def get_dataframe_by_year(file_name="list2dataframe.feather", pre_hour=24, start
         my_logger.warning(f"exist {load_first_path}, will not get dataframe in every year...")
         return
 
-    new_feature_file = os.path.join(FEATURE_MAP_PATH, "new_feature_map.csv")
+    new_feature_file = os.path.join(DATA_SOURCE_PATH, "new_feature_map.csv")
     new_feature_map = pd.read_csv(new_feature_file, header=None).squeeze().tolist()
-    remained_feature_name_path = os.path.join(FEATURE_MAP_PATH, f"{pre_hour}_999_remained_new_feature_map.csv")
+    remained_feature_name_path = os.path.join(DATA_SOURCE_PATH, f"{pre_hour}_999_remained_new_feature_map.csv")
     remained_feature_map = pd.read_csv(remained_feature_name_path, header=None).squeeze().tolist()
 
     for year in range(start_year, end_year + 1):
@@ -249,7 +203,7 @@ def get_dataframe_by_year(file_name="list2dataframe.feather", pre_hour=24, start
         my_logger.info(f"save {year} samples to feather success... shape: {remained_source_sample.shape} | [{save_file_name}]")
 
 
-def run(start_year=2010, end_year=2018, pre_hour=24):
+def run(start_year=2010, end_year=2018):
     """
     主入口，前提是有了list2dataframe数据集
     :param start_year: 开始年份
@@ -258,9 +212,7 @@ def run(start_year=2010, end_year=2018, pre_hour=24):
     :return:
     """
     # load data
-    all_samples = collect_all_samples(source_path=DATA_SOURCE_PATH, file_name="list2dataframe.feather", start_year=start_year, end_year=end_year, pre_hour=pre_hour)
-    if all_samples is None:  # 说明已经合并过了
-        return
+    all_samples = collect_all_samples(file_name="list2dataframe.feather", start_year=start_year, end_year=end_year)
 
     # drop days
     all_samples.drop(['days'], axis=1, inplace=True)
@@ -285,29 +237,23 @@ def run(start_year=2010, end_year=2018, pre_hour=24):
     # remained feature and save
     remained_feature_name = all_samples.columns
     remained_feature_name_df = pd.DataFrame({"remained_feature": remained_feature_name})
-    remained_feature_name_path = os.path.join(FEATURE_MAP_PATH, f"{pre_hour}_999_remained_new_feature_map.csv")
-    if os.path.exists(remained_feature_name_path):
-        my_logger.warning(f"exist {remained_feature_name_path}, will not save to csv...")
-        return
-    else:
-        remained_feature_name_df.to_csv(remained_feature_name_path, index=False, header=0)
-        my_logger.info(f"999_remained_feature_len:{len(remained_feature_name)},save to - [{remained_feature_name_path}]")
+    remained_feature_name_path = os.path.join(DATA_SOURCE_PATH, f"remained_new_feature_map.csv")
+    remained_feature_name_df.to_csv(remained_feature_name_path, index=False, header=0)
+    my_logger.info(f"999_remained_feature len:{len(remained_feature_name)}, save to [{remained_feature_name_path}]")
 
     # save all data
     save_file = os.path.join(DATA_SOURCE_PATH, f"all_{pre_hour}h_df_rm1.feather")
     all_samples.to_feather(save_file)
     my_logger.info(f"save all_samples to feather - [{save_file}]")
 
-    return all_samples
-
 
 if __name__ == '__main__':
     pre_hour = 24
     # csv_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.csv'
     # pickle_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.pkl'
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old/"
-    FEATURE_MAP_PATH = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/"
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old2/"
     my_logger = MyLog().logger
 
-    run(pre_hour=24)
-    get_dataframe_by_year(pre_hour=24)
+    run()
+    # # 得到的是每一年的数据，暂时不用到
+    # get_dataframe_by_year(pre_hour=24)

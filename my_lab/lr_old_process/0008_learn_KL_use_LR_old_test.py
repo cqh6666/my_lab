@@ -30,10 +30,14 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     :param X_test: dataFrame格式的目标患者特征集
     :return:
     """
-    # lsm_start_time = time.time()
+    select_start_time = time.time()
+
+    global train_rank_x
+    global normalize_weight
+    global train_rank_y
+    global global_init_normalize_weight
 
     similar_rank = pd.DataFrame()
-
     similar_rank['data_id'] = train_rank_x.index.tolist()
     similar_rank['distance'] = (abs((train_rank_x - pre_data) * normalize_weight)).sum(axis=1)
 
@@ -45,6 +49,9 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     # 10%的数据 个性化建模
     x_train = train_rank_x.iloc[select_id, :]
     y_train = train_rank_y.iloc[select_id]
+
+    select_end_time = time.time()
+
     if is_transfer == 1:
         init_weight = global_init_normalize_weight.squeeze().tolist()
         fit_train = x_train * init_weight
@@ -57,14 +64,17 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
 
-    # ss = StandardScaler(with_std=True, with_mean=True)
-    # fit_train = ss.fit_transform(fit_train)
-    # fit_test = ss.fit_transform(fit_test)
+    ss = StandardScaler(with_std=True, with_mean=True)
+    fit_train = ss.fit_transform(fit_train)
+    fit_test = ss.fit_transform(fit_test)
 
-    lr_local = LogisticRegression(solver="liblinear", n_jobs=1, max_iter=local_lr_iter)
+    fit_time = time.time()
+
+    lr_local = LogisticRegression(solver="liblinear", max_iter=local_lr_iter)
     lr_local.fit(fit_train, y_train, sample_ki)
-
     y_predict = lr_local.predict_proba(fit_test)[:, 1]
+
+    train_end_time = time.time()
     # len_split长度 - 1长度 = 自动伸展为len_split  代表每个特征的差异
     x_train = x_train - pre_data
     x_train = abs(x_train)
@@ -72,6 +82,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     mean_r = np.mean(x_train)
     y = abs(true - y_predict)
 
+    write_time = time.time()
     global iteration_data
     global iteration_y
     global lock
@@ -85,8 +96,13 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     finally:
         lock.release()
 
-   # run_time = round(time.time() - lsm_start_time, 2)
-   # my_logger.info(f"[{I_idx}] - train_iter:{lr_local.n_iter_}, cost time: {run_time} s")
+    run_time = time.time()
+    select_cost_time = round(select_end_time-select_start_time, 2)
+    fit_cost_time = round(fit_time - select_end_time, 2)
+    train_cost_time = round(train_end_time - fit_time, 2)
+    write_cost_time = round(run_time - write_time, 2)
+    all_cost_time = round(run_time - select_start_time, 2)
+    my_logger.info(f"[{I_idx}] - cost time: {select_cost_time}, {fit_cost_time}, {train_cost_time}, {write_cost_time} s - [{all_cost_time}] s")
 
 
 if __name__ == '__main__':
@@ -95,9 +111,9 @@ if __name__ == '__main__':
     init_iteration = int(sys.argv[2])
 
     pre_hour = 24
+    root_dir = f"{pre_hour}h"
     transfer_flag = "no_transfer" if is_transfer == 0 else "transfer"
 
-    root_dir = f"{pre_hour}h_old2"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
     PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
@@ -113,7 +129,7 @@ if __name__ == '__main__':
     # last and current iteration
     # every {step} iterations, updates normalize_weight in similarity learning
     cur_iteration = init_iteration + 1
-    step = 3
+    step = 1
     l_rate = 0.00001
     select_rate = 0.1
     regularization_c = 0.05
@@ -123,13 +139,13 @@ if __name__ == '__main__':
     pool_nums = 25
     n_personal_model_each_iteration = 1000
     global_lr_iter = 400
-    local_lr_iter = 100
+    local_lr_iter = 50
 
     my_logger.warning(
         f"[params] - is_transfer:{is_transfer}, init_iter:{init_iteration}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}, global_lr:{global_lr_iter}, local_lr:{local_lr_iter}")
 
     # 全局迁移策略 需要用到初始的csv
-    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_liblinear_{global_lr_iter}.csv")
+    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
     global_init_normalize_weight = pd.read_csv(init_weight_file_name)
 
     # ----- init weight -----
@@ -211,7 +227,7 @@ if __name__ == '__main__':
 
         try:
             wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{iteration_idx}_psm_{transfer_flag}.csv")
-            normalize_weight.to_csv(wi_file_name, index=False)
+            # normalize_weight.to_csv(wi_file_name, index=False)
             my_logger.warning(f"iter idx: {iteration_idx} | save {wi_file_name} success!")
         except Exception as err:
             my_logger.error(f"iter idx: {iteration_idx} | save error!")

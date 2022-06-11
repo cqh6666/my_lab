@@ -49,7 +49,7 @@ def check_lab521():
     检查lab521
     :return:
     """
-    all_sample = os.path.join(DATA_SOURCE_PATH, all_rm1_process_file_name)
+    all_sample = os.path.join(DATA_SOURCE_PATH, f"all_{rm1_process_file_name}.feather")
     my_logger.info((all_sample.loc[:, 'LAB_521'] > 0).values.sum())
     my_logger.info(f"test value LAB_521: {all_sample.loc[80386, 'LAB_521']}")
     my_logger.info(f"test value other:  {all_sample.loc[80386, 'ID']}")
@@ -120,7 +120,7 @@ def get_med_px_max_distance(med_px_feature_list):
     最大距离
     :return:
     """
-    load_file_name = os.path.join(DATA_SOURCE_PATH, all_rm1_process_file_name)
+    load_file_name = os.path.join(DATA_SOURCE_PATH, f"all_{rm1_process_file_name}.feather")
     all_sample = pd.read_feather(load_file_name)
     med_px_all_sample = all_sample.loc[:, med_px_feature_list]
     my_logger.info(f"get med and px max distance success!")
@@ -135,7 +135,7 @@ def fill_miss2_all(file_name):
     :return:
     """
     # set read file and save file
-    load_file_name = os.path.join(DATA_SOURCE_PATH, all_rm1_process_file_name)
+    load_file_name = os.path.join(DATA_SOURCE_PATH, f"all_{rm1_process_file_name}.feather")
     save_file_name = os.path.join(DATA_SOURCE_PATH, f"all_{file_name}.feather")
 
     # get the remained med and px feature name
@@ -191,39 +191,25 @@ def fill_miss2_each_year(file_name, hour=24):
             f"/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/{pre_hour}/{year}_24h_snap1_rm1_miss2.feather")
 
 
-def fill_miss3_each_year():
-    med_px_feature_list = get_med_px_feature_list()
-
-    # traverse each year and normalize feature
-    for year in range(2010, 2018 + 1):
-        cur_data = pd.read_feather(
-            f"/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/{pre_hour}/{year}_24h_snap1_rm1_miss1_norm1.feather")
-        cur_med_px_data = cur_data.loc[:, med_px_feature_list]
-        cur_med_px_data[cur_med_px_data == 0] = np.nan
-        cur_data.loc[:, med_px_feature_list] = cur_med_px_data
-        # save file
-        cur_data.to_feather(
-            f"/panfs/pfs.local/work/liu/xzhang_sta/tangxizhuo/data/{pre_hour}/{year}_24h_snap1_rm1_miss3_norm1.feather")
-
 
 if __name__ == '__main__':
+    my_logger = MyLog().logger
 
     pre_hour = 24
 
-    FEATURE_MAP_PATH = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/"
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old/"
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old2/"
 
     # 初始处理数据
-    all_rm1_process_file_name = f"all_{pre_hour}h_df_rm1.feather"
+    rm1_process_file_name = f"{pre_hour}h_df_rm1"
 
-    miss_process_file_name = f"{pre_hour}_df_rm1_miss2"
+    # miss_process_file_name = f"{pre_hour}_df_rm1_miss2"
+
     miss_norm_process_file_name = f"{pre_hour}_df_rm1_norm1"
 
-    remained_feature_file = os.path.join(FEATURE_MAP_PATH, f'{pre_hour}_999_remained_new_feature_map.csv')
+    remained_feature_file = os.path.join(DATA_SOURCE_PATH, f'remained_new_feature_map.csv')
     remained_feature_list = pd.read_csv(remained_feature_file, header=None).squeeze().tolist()
 
-    my_logger = MyLog().logger
-
     # 对px和med特征miss值处理
-    fill_miss2_all(miss_process_file_name)
-    norm_feature_all(miss_process_file_name, miss_norm_process_file_name)
+    # fill_miss2_all(miss_process_file_name)
+
+    norm_feature_all(rm1_process_file_name, miss_norm_process_file_name)
