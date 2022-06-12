@@ -28,7 +28,7 @@ while iteration_idx <= 120:
         my_logger.info(f"{psm_no_transfer_file_name} exist, start sbatch 0009_auto_sbatch_LR.sh {is_transfer} {iteration_idx}")
         time.sleep(20)
         os.system(
-            f'sh /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0009_auto_sbatch_LR.sh {is_transfer} {iteration_idx} ')
+            f'sh /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_lr_new/0009_auto_sbatch_LR.sh {is_transfer} {iteration_idx} ')
         iteration_idx += step
     else:
         time.sleep(30)

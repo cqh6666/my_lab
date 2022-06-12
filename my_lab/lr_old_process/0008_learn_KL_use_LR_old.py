@@ -126,12 +126,11 @@ if __name__ == '__main__':
 
     # 全局迁移策略或初始迭代 需要用到初始的csv
     init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_liblinear_{global_lr_iter}.csv")
-    if is_transfer == 1:
-        global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
+    global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 
     # ----- init weight -----
     if init_iteration == 0:
-        normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
+        normalize_weight = global_init_normalize_weight
     else:
         wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_{transfer_flag}.csv")
         normalize_weight = pd.read_csv(wi_file_name).squeeze().tolist()
@@ -218,3 +217,5 @@ if __name__ == '__main__':
         collect()
 
         my_logger.warning(f"======================= {iteration_idx} rounds done ! ========================")
+
+    print("run done!")

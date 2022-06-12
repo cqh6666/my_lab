@@ -18,7 +18,7 @@ root_dir = f"{pre_hour}h"
 PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/psm_{transfer_flag}/'
 
 if iter_init == 0:
-    os.system(f'sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0008_learn_KL_use_LR.sh {is_transfer} {iter_init}')
+    os.system(f'sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_lr_new/0008_learn_KL_use_LR.sh {is_transfer} {iter_init}')
     iter_init += step
 
 while iter_init < 121:
@@ -26,7 +26,7 @@ while iter_init < 121:
     if os.path.exists(wi_file_name):
         time.sleep(10)
         os.system(
-            f'sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code/0008_learn_KL_use_LR.sh {is_transfer} {iter_init}')
+            f'sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_lr_new/0008_learn_KL_use_LR.sh {is_transfer} {iter_init}')
         iter_init += step
     else:
         time.sleep(30)

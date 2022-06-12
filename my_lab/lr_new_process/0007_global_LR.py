@@ -16,6 +16,7 @@ import pickle
 import random
 import sys
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
+import joblib
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
@@ -115,8 +116,16 @@ def sub_global_train(max_iter):
 
     run_time = round(time.time() - start_time, 2)
 
-    my_logger.info(f'[global] - solver:liblinear, max_iter:{max_iter}, train_iter:{lr_all.n_iter_}, cost time: {run_time} s, auc: {auc}')
+    my_logger.info(f'[sub-global(0.1)] - solver:liblinear, max_iter:{max_iter}, train_iter:{lr_all.n_iter_}, cost time: {run_time} s, auc: {auc}')
 
+
+def load_pkl_to_predict():
+    pkl_file = os.path.join(MODEL_SAVE_PATH, f"24h_global_lr_400.pkl")
+    lr_all = pickle.load(open(pkl_file, "rb"))
+    test_x_ft = test_x
+    y_predict = lr_all.decision_function(test_x_ft)
+    auc = roc_auc_score(test_y, y_predict)
+    print("400", auc)
 
 if __name__ == '__main__':
     # lr_max_iter = int(sys.argv[1])
@@ -130,6 +139,8 @@ if __name__ == '__main__':
     train_x, train_y, test_x, test_y = get_train_test_data()
 
     max_iter = int(sys.argv[1])
+
+    load_pkl_to_predict()
     # select_rate = 0.1
     # train_x, train_y = get_train_data_for_random_idx(train_x, train_y, select_rate)
     # del train_x, train_y
@@ -141,7 +152,7 @@ if __name__ == '__main__':
     # pool.close()
     # pool.join()
     # my_logger.warning(f"lr_max_iter:{lr_max_iter}")
-    sub_global_train(max_iter)
+    # sub_global_train(max_iter)
     # my_logger.warning("start mt training...")
     # # 多线程
     # with ThreadPoolExecutor(max_workers=pool_nums) as executor:

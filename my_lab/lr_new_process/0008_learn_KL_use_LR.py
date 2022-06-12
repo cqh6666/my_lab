@@ -119,19 +119,18 @@ if __name__ == '__main__':
     pool_nums = 25
     n_personal_model_each_iteration = 1000
     global_lr_iter = 400
-    local_lr_iter = 100
+    local_lr_iter = 50
 
     my_logger.warning(
         f"[params] - is_transfer:{is_transfer}, init_iter:{init_iteration}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}, global_lr:{global_lr_iter}, local_lr:{local_lr_iter}")
 
     # 全局迁移策略 需要用到初始的csv
-    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_liblinear_{global_lr_iter}.csv")
-    if is_transfer == 1:
-        global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
+    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
+    global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 
     # ----- init weight -----
     if init_iteration == 0:
-        normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
+        normalize_weight = global_init_normalize_weight
     else:
         wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_{transfer_flag}.csv")
         normalize_weight = pd.read_csv(wi_file_name).squeeze().tolist()
@@ -218,3 +217,5 @@ if __name__ == '__main__':
         collect()
 
         my_logger.warning(f"======================= {iteration_idx} rounds done ! ========================")
+
+    print("run done!")

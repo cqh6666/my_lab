@@ -124,7 +124,6 @@ if __name__ == '__main__':
     len_split = int(train_x.shape[0] * select_ratio)  # the number of selected train data
 
     # 全局迁移策略 需要用到初始的csv
-
     init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_{global_lr_iter}.csv")
     global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 
