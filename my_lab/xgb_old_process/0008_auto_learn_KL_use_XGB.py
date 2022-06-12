@@ -11,7 +11,7 @@ iter_init = int(sys.argv[2])
 print(f"[params] is_transfer:{is_transfer}, iter_init:{iter_init}")
 
 xgb_boost_num = 50
-step = 1
+step = 3
 pre_hour = 24
 
 transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"

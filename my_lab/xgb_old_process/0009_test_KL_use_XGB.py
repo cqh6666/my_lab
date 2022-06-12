@@ -69,10 +69,10 @@ def personalized_modeling(pre_data, idx, x_test):
                           verbose_eval=False)
 
     d_test_local = xgb.DMatrix(fit_test)
-    proba = xgb_local.predict(d_test_local)
+    prob = xgb_local.predict(d_test_local)
 
     global_lock.acquire()
-    test_result.loc[idx, 'proba'] = proba
+    test_result.loc[idx, 'prob'] = prob
     # p_weight.loc[idx, :] = xgb_local.get_score(importance_type='weight')
     global_lock.release()
 
@@ -82,24 +82,26 @@ def personalized_modeling(pre_data, idx, x_test):
 
 def get_train_test_data():
     train_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_x_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+        os.path.join(DATA_SOURCE_PATH, f"all_x_train_{key_component}.feather"))
     train_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_y_train_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+        os.path.join(DATA_SOURCE_PATH, f"all_y_train_{key_component}.feather"))['Label']
     test_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_x_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))
+        os.path.join(DATA_SOURCE_PATH, f"all_x_test_{key_component}.feather"))
     test_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, "all_y_test_24h_norm_dataframe_999_miss_medpx_max2dist.feather"))['Label']
+        os.path.join(DATA_SOURCE_PATH, f"all_y_test_{key_component}.feather"))['Label']
 
     return train_x, train_y, test_x, test_y
 
 
 def get_feature_weight_list(metric_iter, tl_boost_num, local_boost_num):
     # 读取相似性度量
-    if learned_metric_iteration == "0":
-        feature_importance_file = os.path.join(XGB_MODEL_PATH, '0006_xgb_global_feature_weight_boost100.csv')
+    if init_iteration == 0:
+        # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
+        file_name = '0007_24h_global_xgb_feature_weight_boost500.csv'
+        normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
     else:
-        weight_file_name = f'0008_24h_{metric_iter}_feature_weight_gtlboost{tl_boost_num}_localboost{local_boost_num}.csv'
-        feature_importance_file = os.path.join(PSM_SAVE_PATH, weight_file_name)
+        file_name = f'0008_{pre_hour}h_{init_iteration}_psm_boost{xgb_boost_num}{transfer_flag}.csv'
+        normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
 
     f_weight = pd.read_csv(feature_importance_file)
     f_weight = f_weight.squeeze().tolist()
@@ -110,31 +112,35 @@ def params_logger_info_show():
     my_logger.warning(
         f"[xgb  params] - xgb_thread_num:{xgb_thread_num},  xgb_boost_num:{xgb_boost_num}, glo_tl_boost_num:{glo_tl_boost_num}")
     my_logger.warning(
-        f"[iter params] - learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:transfer")
+        f"[iter params] - transfer_flag:{transfer_flag}, learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}")
 
 
 if __name__ == '__main__':
 
     my_logger = MyLog().logger
 
-    start_idx = int(sys.argv[1])
-    end_idx = int(sys.argv[2])
-    learned_metric_iteration = str(sys.argv[3])
+    is_transfer = int(sys.argv[1])
+    learned_metric_iteration = str(sys.argv[2])
+    start_idx = int(sys.argv[3])
+    end_idx = int(sys.argv[4])
 
+    pre_hour = 24
     xgb_thread_num = 1
     select_ratio = 0.1
     m_sample_weight = 0.01
     pool_nums = 20
     xgb_boost_num = 50
-    glo_tl_boost_num = 20
+    glo_tl_boost_num = 500
 
+    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     # ----- work space -----
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/"  # 训练集的X和Y
-    XGB_MODEL_PATH = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/'
+    root_dir = f"{pre_hour}h_old2"
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
+    XGB_MODEL_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}/'
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_result_{transfer_flag}'
 
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_transfer_psm/'
-    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_xgb/24h_xgb_model/24h_test_result_transfer/'
-
+    key_component = f"{pre_hour}_df_rm1_norm1"
     # 训练集的X和Y
     train_x, train_y, test_x, test_y = get_train_test_data()
 
@@ -143,8 +149,11 @@ if __name__ == '__main__':
     len_split = int(train_x.shape[0] * select_ratio)  # the number of selected train data
 
     # 迁移模型
-    xgb_model_file = os.path.join(XGB_MODEL_PATH, f"0006_xgb_global_24h_all_999_norm_miss_boost{glo_tl_boost_num}.pkl")
-    xgb_model = pickle.load(open(xgb_model_file, "rb"))
+    if is_transfer == 1:
+        xgb_model_file = os.path.join(XGB_MODEL_PATH, f"0007_{pre_hour}h_global_xgb_boost{glo_tl_boost_num}.pkl")
+        xgb_model = pickle.load(open(xgb_model_file, "rb"))
+    else:
+        xgb_model = None
 
     # 读取迭代了k次的特征权重csv文件
     feature_weight = get_feature_weight_list(metric_iter=learned_metric_iteration, tl_boost_num=glo_tl_boost_num, local_boost_num=xgb_boost_num)

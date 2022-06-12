@@ -17,7 +17,7 @@ start_iter = int(sys.argv[2])
 
 transfer_flag = "no_transfer" if is_transfer == 0 else "transfer"
 
-PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/{transfer_flag}_psm/'
+PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{pre_hour}h/psm_{transfer_flag}/'
 
 iteration_idx = start_iter
 

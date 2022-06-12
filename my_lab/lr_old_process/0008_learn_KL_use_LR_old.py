@@ -46,7 +46,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     x_train = train_rank_x.iloc[select_id, :]
     y_train = train_rank_y.iloc[select_id]
     if is_transfer == 1:
-        init_weight = global_init_normalize_weight.squeeze().tolist()
+        init_weight = global_init_normalize_weight
         fit_train = x_train * init_weight
         fit_test = X_test * init_weight
     else:
@@ -56,10 +56,6 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     # 相似样本对应的权重，越相似权重越高
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
-
-    # ss = StandardScaler(with_std=True, with_mean=True)
-    # fit_train = ss.fit_transform(fit_train)
-    # fit_test = ss.fit_transform(fit_test)
 
     lr_local = LogisticRegression(solver="liblinear", n_jobs=1, max_iter=local_lr_iter)
     lr_local.fit(fit_train, y_train, sample_ki)
@@ -100,7 +96,7 @@ if __name__ == '__main__':
     root_dir = f"{pre_hour}h_old2"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/psm_{transfer_flag}/'
 
     train_x = pd.read_feather(
         os.path.join(DATA_SOURCE_PATH, f"all_x_train_{pre_hour}_df_rm1_norm1.feather"))
@@ -113,14 +109,14 @@ if __name__ == '__main__':
     # last and current iteration
     # every {step} iterations, updates normalize_weight in similarity learning
     cur_iteration = init_iteration + 1
-    step = 3
+    step = 15
     l_rate = 0.00001
     select_rate = 0.1
     regularization_c = 0.05
     m_sample_weight = 0.01
 
     # 不迁移的话设置为20+50
-    pool_nums = 25
+    pool_nums = 30
     n_personal_model_each_iteration = 1000
     global_lr_iter = 400
     local_lr_iter = 100
@@ -128,16 +124,17 @@ if __name__ == '__main__':
     my_logger.warning(
         f"[params] - is_transfer:{is_transfer}, init_iter:{init_iteration}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}, global_lr:{global_lr_iter}, local_lr:{local_lr_iter}")
 
-    # 全局迁移策略 需要用到初始的csv
+    # 全局迁移策略或初始迭代 需要用到初始的csv
     init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_liblinear_{global_lr_iter}.csv")
-    global_init_normalize_weight = pd.read_csv(init_weight_file_name)
+    if is_transfer == 1:
+        global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 
     # ----- init weight -----
     if init_iteration == 0:
-        normalize_weight = global_init_normalize_weight
+        normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
     else:
         wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_{transfer_flag}.csv")
-        normalize_weight = pd.read_csv(wi_file_name)
+        normalize_weight = pd.read_csv(wi_file_name).squeeze().tolist()
 
     lock = Lock()
     my_logger.warning("start iteration ... ")
@@ -199,25 +196,25 @@ if __name__ == '__main__':
         new_ki = []
         risk_gap = [real - pred for real, pred in zip(list(iteration_y), list(all_error))]
         # 具有单列或单行的数据被Squeeze为一个Series。
-        for idx, value in enumerate(normalize_weight.squeeze()):
+        for idx, value in enumerate(normalize_weight):
             features_x = list(iteration_data.iloc[:, idx])
             plus_list = [a * b for a, b in zip(risk_gap, features_x)]
             new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
             new_ki.append(new_value)
 
-        new_ki_map = list(map(lambda x: x if x > 0 else 0, new_ki))
+        normalize_weight = list(map(lambda x: x if x > 0 else 0, new_ki))
         # list -> dataframe
-        normalize_weight = pd.DataFrame({f'Ma_update_{iteration_idx}': new_ki_map})
+        normalize_weight_df = pd.DataFrame({f'Ma_update_{iteration_idx}': normalize_weight})
 
         try:
             wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{iteration_idx}_psm_{transfer_flag}.csv")
-            normalize_weight.to_csv(wi_file_name, index=False)
+            normalize_weight_df.to_csv(wi_file_name, index=False)
             my_logger.warning(f"iter idx: {iteration_idx} | save {wi_file_name} success!")
         except Exception as err:
             my_logger.error(f"iter idx: {iteration_idx} | save error!")
             raise err
 
-        del iteration_data, iteration_y, new_ki
+        del iteration_data, iteration_y
         collect()
 
         my_logger.warning(f"======================= {iteration_idx} rounds done ! ========================")

@@ -9,15 +9,14 @@ is_transfer = int(sys.argv[1])
 iter_init = int(sys.argv[2])
 print(f"[params] is_transfer:{is_transfer}, iter_init:{iter_init}")
 
-step = 3
+step = 15
 pre_hour = 24
 
 transfer_flag = "no_transfer" if is_transfer == 0 else "transfer"
 
 root_dir = f"{pre_hour}h_old2"
-PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm/'
+PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/psm_{transfer_flag}/'
 
-# init
 if iter_init == 0:
     os.system(f'sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_lr_old/0008_learn_KL_use_LR_old.sh {is_transfer} {iter_init}')
     iter_init += step

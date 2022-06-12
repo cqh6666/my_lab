@@ -131,7 +131,7 @@ if __name__ == '__main__':
     my_logger = MyLog().logger
 
     # ----- similarity learning para -----
-    step = 1
+    step = 3
     l_rate = 0.00001
     select_rate = 0.1
     regularization_c = 0.05
@@ -160,7 +160,7 @@ if __name__ == '__main__':
         file_name = '0007_24h_global_xgb_feature_weight_boost500.csv'
         normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
     else:
-        file_name = f'0008_{pre_hour}h_{init_iteration}_psm_boost{xgb_boost_num}{transfer_flag}.csv'
+        file_name = f'0008_{pre_hour}h_{init_iteration}_psm_boost{xgb_boost_num}_{transfer_flag}.csv'
         normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
 
     lock = threading.Lock()

@@ -14,6 +14,11 @@ __author__ = 'cqh'
 
 import joblib
 
-string_list_file_path = "D:\\lab\\other_file\\2016_string2list.pkl"
-list_data = joblib.load(string_list_file_path)
+# string_list_file_path = "D:\\lab\\other_file\\2016_string2list.pkl"
+# list_data = joblib.load(string_list_file_path)
+# print(".")
+
+import pandas as pd
+
+csv = pd.read_csv(r"D:\lab\other_file\0008_24h_21_psm_transfer.csv")
 print(".")
