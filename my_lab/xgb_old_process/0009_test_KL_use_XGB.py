@@ -93,17 +93,17 @@ def get_train_test_data():
     return train_x, train_y, test_x, test_y
 
 
-def get_feature_weight_list(metric_iter, tl_boost_num, local_boost_num):
+def get_feature_weight_list():
     # 读取相似性度量
-    if init_iteration == 0:
+    if learned_metric_iteration == 0:
         # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
         file_name = '0007_24h_global_xgb_feature_weight_boost500.csv'
         normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
     else:
-        file_name = f'0008_{pre_hour}h_{init_iteration}_psm_boost{xgb_boost_num}{transfer_flag}.csv'
+        file_name = f'0008_{pre_hour}h_{learned_metric_iteration}_psm_boost{xgb_boost_num}{transfer_flag}.csv'
         normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
 
-    f_weight = pd.read_csv(feature_importance_file)
+    f_weight = pd.read_csv(normalize_weight)
     f_weight = f_weight.squeeze().tolist()
     return f_weight
 
@@ -156,13 +156,13 @@ if __name__ == '__main__':
         xgb_model = None
 
     # 读取迭代了k次的特征权重csv文件
-    feature_weight = get_feature_weight_list(metric_iter=learned_metric_iteration, tl_boost_num=glo_tl_boost_num, local_boost_num=xgb_boost_num)
+    feature_weight = get_feature_weight_list()
 
     # 显示参数信息
     params_logger_info_show()
 
     # init test result
-    test_result = pd.DataFrame(columns=['real', 'proba'])
+    test_result = pd.DataFrame(columns=['real', 'prob'])
     test_result['real'] = test_y.iloc[start_idx:end_idx]
 
     global_lock = threading.Lock()
@@ -187,7 +187,7 @@ if __name__ == '__main__':
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_proba_transfer.csv')
+        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_prob_{transfer_flag}.csv')
         test_result.to_csv(test_result_csv, index=False)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:

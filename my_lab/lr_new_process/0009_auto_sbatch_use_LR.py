@@ -11,7 +11,7 @@ import sys
 my_logger = MyLog().logger
 
 pre_hour = 24
-step = 5
+step = 3
 is_transfer = int(sys.argv[1])
 start_iter = int(sys.argv[2])
 

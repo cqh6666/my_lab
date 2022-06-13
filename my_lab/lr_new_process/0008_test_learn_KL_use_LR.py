@@ -1,6 +1,6 @@
 # encoding=gbk
 """
-多线程跑程序
+测试应用
 """
 from threading import Lock
 import time
@@ -30,18 +30,20 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     :param X_test: dataFrame格式的目标患者特征集
     :return:
     """
-    # lsm_start_time = time.time()
-
     similar_rank = pd.DataFrame()
 
     similar_rank['data_id'] = train_rank_x.index.tolist()
-    similar_rank['distance'] = (abs((train_rank_x - pre_data) * psm_weight)).sum(axis=1)
+    similar_rank['distance'] = (abs((train_rank_x - pre_data) * normalize_weight)).sum(axis=1)
 
     similar_rank.sort_values('distance', inplace=True)
     similar_rank.reset_index(drop=True, inplace=True)
+
     # 选出相似性前len_split个样本 返回numpy格式
     select_id = similar_rank.iloc[:len_split, 0].values
 
+    top_5_idx = similar_rank.iloc[:5, 0].values
+    top_5_dis = similar_rank.iloc[:5, 1].values
+    my_logger.info(f"[{I_idx}]: similar_idx:{top_5_idx}, similar_distance:{top_5_dis}")
     # 10%的数据 个性化建模
     x_train = train_rank_x.iloc[select_id, :]
     y_train = train_rank_y.iloc[select_id]
@@ -82,9 +84,6 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
         lock.release()
 
 
-# run_time = round(time.time() - lsm_start_time, 2)
-# my_logger.info(f"[{I_idx}] - train_iter:{lr_local.n_iter_}, cost time: {run_time} s")
-
 
 if __name__ == '__main__':
 
@@ -110,7 +109,7 @@ if __name__ == '__main__':
     # ----- similarity learning para -----
     # last and current iteration
     # every {step} iterations, updates normalize_weight in similarity learning
-    cur_iteration = init_iteration + 1
+    cur_iteration = 2
     step = 3
     l_rate = 0.00001
     select_rate = 0.1
@@ -118,8 +117,8 @@ if __name__ == '__main__':
     m_sample_weight = 0.01
 
     # 不迁移的话设置为20+50
-    pool_nums = 25
-    n_personal_model_each_iteration = 1000
+    pool_nums = 10
+    n_personal_model_each_iteration = 10
     global_lr_iter = 400
     local_lr_iter = 50
 
@@ -132,10 +131,10 @@ if __name__ == '__main__':
 
     # ----- init weight -----
     if init_iteration == 0:
-        psm_weight = global_init_normalize_weight
+        normalize_weight = global_init_normalize_weight
     else:
         wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_{transfer_flag}.csv")
-        psm_weight = pd.read_csv(wi_file_name).squeeze().tolist()
+        normalize_weight = pd.read_csv(wi_file_name).squeeze().tolist()
 
     lock = Lock()
     my_logger.warning("start iteration ... ")
@@ -184,38 +183,38 @@ if __name__ == '__main__':
         my_logger.warning(
             f"iter idx:{iteration_idx} | build {n_personal_model_each_iteration} models need: {run_time} s")
 
-        # ----- update psm_weight -----
+        # ----- update normalize weight -----
         # 1000 * columns     columns
         """
         iteration_data 代表目标样本与前N个相似样本的每个特征的差异平均值
-        乘上psm_weight 代表 代表每个特征有不一样的重要性，重要性高的特征差异就会更大
+        乘上normaliza_weight 代表 代表每个特征有不一样的重要性，重要性高的特征差异就会更大
         all_error 就是计算所有特征差异的权值之和
         """
-        new_similar = iteration_data * psm_weight
+        new_similar = iteration_data * normalize_weight
+
         all_error = new_similar.sum(axis=1)
 
         new_ki = []
         risk_gap = [real - pred for real, pred in zip(list(iteration_y), list(all_error))]
         # 具有单列或单行的数据被Squeeze为一个Series。
-        for idx, value in enumerate(psm_weight):
+        for idx, value in enumerate(normalize_weight):
             features_x = list(iteration_data.iloc[:, idx])
             plus_list = [a * b for a, b in zip(risk_gap, features_x)]
             new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
             new_ki.append(new_value)
 
         new_ki = list(map(lambda x: x if x > 0 else 0, new_ki))
-        psm_weight = new_ki.copy()
-
+        normalize_weight = new_ki.copy()
+        # list -> dataframe
         try:
-            psm_weight_df = pd.DataFrame({f'Ma_update_{iteration_idx}': psm_weight})
+            normalize_weight_df = pd.DataFrame({f'Ma_update_{iteration_idx}': normalize_weight})
             wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{iteration_idx}_psm_{transfer_flag}.csv")
-            psm_weight_df.to_csv(wi_file_name, index=False)
+            # normalize_weight_df.to_csv(wi_file_name, index=False)
             my_logger.warning(f"iter idx: {iteration_idx} | save {wi_file_name} success!")
         except Exception as err:
             my_logger.error(f"iter idx: {iteration_idx} | save error!")
             raise err
 
-        del iteration_data, iteration_y
         collect()
 
         my_logger.warning(f"======================= {iteration_idx} rounds done ! ========================")

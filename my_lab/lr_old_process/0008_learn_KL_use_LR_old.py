@@ -35,7 +35,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     similar_rank = pd.DataFrame()
 
     similar_rank['data_id'] = train_rank_x.index.tolist()
-    similar_rank['distance'] = (abs((train_rank_x - pre_data) * normalize_weight)).sum(axis=1)
+    similar_rank['distance'] = (abs((train_rank_x - pre_data) * psm_weight)).sum(axis=1)
 
     similar_rank.sort_values('distance', inplace=True)
     similar_rank.reset_index(drop=True, inplace=True)
@@ -107,7 +107,6 @@ if __name__ == '__main__':
 
     # ----- similarity learning para -----
     # last and current iteration
-    # every {step} iterations, updates normalize_weight in similarity learning
     cur_iteration = init_iteration + 1
     step = 15
     l_rate = 0.00001
@@ -116,7 +115,7 @@ if __name__ == '__main__':
     m_sample_weight = 0.01
 
     # 不迁移的话设置为20+50
-    pool_nums = 30
+    pool_nums = 35
     n_personal_model_each_iteration = 1000
     global_lr_iter = 400
     local_lr_iter = 100
@@ -130,10 +129,10 @@ if __name__ == '__main__':
 
     # ----- init weight -----
     if init_iteration == 0:
-        normalize_weight = global_init_normalize_weight
+        psm_weight = global_init_normalize_weight
     else:
         wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{init_iteration}_psm_{transfer_flag}.csv")
-        normalize_weight = pd.read_csv(wi_file_name).squeeze().tolist()
+        psm_weight = pd.read_csv(wi_file_name).squeeze().tolist()
 
     lock = Lock()
     my_logger.warning("start iteration ... ")
@@ -189,25 +188,25 @@ if __name__ == '__main__':
         乘上normaliza_weight 代表 代表每个特征有不一样的重要性，重要性高的特征差异就会更大
         all_error 就是计算所有特征差异的权值之和
         """
-        new_similar = iteration_data * normalize_weight
+        new_similar = iteration_data * psm_weight
         all_error = new_similar.sum(axis=1)
 
         new_ki = []
         risk_gap = [real - pred for real, pred in zip(list(iteration_y), list(all_error))]
         # 具有单列或单行的数据被Squeeze为一个Series。
-        for idx, value in enumerate(normalize_weight):
+        for idx, value in enumerate(psm_weight):
             features_x = list(iteration_data.iloc[:, idx])
             plus_list = [a * b for a, b in zip(risk_gap, features_x)]
             new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
             new_ki.append(new_value)
 
-        normalize_weight = list(map(lambda x: x if x > 0 else 0, new_ki))
+        psm_weight = list(map(lambda x: x if x > 0 else 0, new_ki))
         # list -> dataframe
-        normalize_weight_df = pd.DataFrame({f'Ma_update_{iteration_idx}': normalize_weight})
+        psm_weight_df = pd.DataFrame({f'Ma_update_{iteration_idx}': psm_weight})
 
         try:
             wi_file_name = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{iteration_idx}_psm_{transfer_flag}.csv")
-            normalize_weight_df.to_csv(wi_file_name, index=False)
+            psm_weight_df.to_csv(wi_file_name, index=False)
             my_logger.warning(f"iter idx: {iteration_idx} | save {wi_file_name} success!")
         except Exception as err:
             my_logger.error(f"iter idx: {iteration_idx} | save error!")

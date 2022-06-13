@@ -69,10 +69,6 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
 
-    ss = StandardScaler(with_std=True, with_mean=True)
-    fit_train = ss.fit_transform(fit_train)
-    fit_test = ss.fit_transform(fit_test)
-
     fit_time = time.time()
 
     lr_local = LogisticRegression(solver="liblinear", max_iter=local_lr_iter)

@@ -52,9 +52,9 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     similar_rank = pd.DataFrame()
 
     similar_rank['data_id'] = train_rank_x.index.tolist()
-    similar_rank['Distance'] = (abs((train_rank_x - pre_data) * normalize_weight)).sum(axis=1)
+    similar_rank['distance'] = (abs((train_rank_x - pre_data) * normalize_weight)).sum(axis=1)
 
-    similar_rank.sort_values('Distance', inplace=True)
+    similar_rank.sort_values('distance', inplace=True)
     similar_rank.reset_index(drop=True, inplace=True)
     # 选出相似性前len_split个样本 返回numpy格式
     select_id = similar_rank.iloc[:len_split, 0].values
@@ -158,10 +158,10 @@ if __name__ == '__main__':
     if init_iteration == 0:
         # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
         file_name = '0007_24h_global_xgb_feature_weight_boost500.csv'
-        normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
+        normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name)).squeeze().tolist()
     else:
         file_name = f'0008_{pre_hour}h_{init_iteration}_psm_boost{xgb_boost_num}_{transfer_flag}.csv'
-        normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
+        normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name)).squeeze().tolist()
 
     lock = threading.Lock()
     my_logger.warning("start iteration ... ")
@@ -223,21 +223,20 @@ if __name__ == '__main__':
         new_ki = []
         risk_gap = [real - pred for real, pred in zip(list(iteration_y), list(all_error))]
         # 具有单列或单行的数据被Squeeze为一个Series。
-        for idx, value in enumerate(normalize_weight.squeeze()):
+        for idx, value in enumerate(normalize_weight):
             features_x = list(iteration_data.iloc[:, idx])
             plus_list = [a * b for a, b in zip(risk_gap, features_x)]
             new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
             new_ki.append(new_value)
 
-        new_ki_map = list(map(lambda x: x if x > 0 else 0, new_ki))
+        normalize_weight = list(map(lambda x: x if x > 0 else 0, new_ki))
         # list -> dataframe
-        normalize_weight = pd.DataFrame(
-            {'Ma_update_{}'.format(iteration_idx): new_ki_map})
+        normalize_weight_df = pd.DataFrame({'Ma_update_{}'.format(iteration_idx): normalize_weight})
 
         try:
             # if iteration_idx % step == 0:
             file_name = f'0008_{pre_hour}h_{iteration_idx}_psm_boost{xgb_boost_num}_{transfer_flag}.csv'
-            normalize_weight.to_csv(os.path.join(PSM_SAVE_PATH, file_name), index=False)
+            normalize_weight_df.to_csv(os.path.join(PSM_SAVE_PATH, file_name), index=False)
             my_logger.warning(f"iter idx: {iteration_idx} | save {file_name} success!")
         except Exception as err:
             my_logger.error(f"iter idx: {iteration_idx} | save {file_name} error!")

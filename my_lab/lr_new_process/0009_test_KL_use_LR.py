@@ -26,7 +26,7 @@ def personalized_modeling(pre_data, idx, x_test):
     similar_rank = pd.DataFrame()
 
     similar_rank['data_id'] = train_x.index.tolist()
-    similar_rank['distance'] = (abs((train_x - pre_data) * feature_weight)).sum(axis=1)
+    similar_rank['distance'] = (abs((train_x - pre_data) * psm_weight)).sum(axis=1)
 
     similar_rank.sort_values('distance', inplace=True)
     similar_rank.reset_index(drop=True, inplace=True)
@@ -128,7 +128,7 @@ if __name__ == '__main__':
     global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 
     # 读取迭代了k次的相似性度量csv文件
-    feature_weight = get_feature_weight_list(metric_iter=learned_metric_iteration)
+    psm_weight = get_feature_weight_list(metric_iter=learned_metric_iteration)
 
     # 显示参数信息
     my_logger.warning(

@@ -81,7 +81,7 @@ if __name__ == '__main__':
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     psm_flag = f"psm_{transfer_flag}"
 
-    root_dir = f"{pre_hour}h_old"
+    root_dir = f"{pre_hour}h_old2"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # ÑµÁ·¼¯µÄXºÍY
     PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm_liblinear/'
     INIT_PSM_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
