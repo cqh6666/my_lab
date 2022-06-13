@@ -187,8 +187,8 @@ if __name__ == '__main__':
         # ----- update psm_weight -----
         # 1000 * columns     columns
         """
-        iteration_data 代表目标样本与前N个相似样本的每个特征的差异平均值
-        乘上psm_weight 代表 代表每个特征有不一样的重要性，重要性高的特征差异就会更大
+        iteration_data 代表目标样本与前N个相似样本的每个特征的差异平均值 N * p
+        乘上psm_weight 代表 代表每个特征有不一样的重要性，重要性高的特征差异就会更大 p
         all_error 就是计算所有特征差异的权值之和
         """
         new_similar = iteration_data * psm_weight

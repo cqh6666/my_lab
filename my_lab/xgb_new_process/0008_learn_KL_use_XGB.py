@@ -107,7 +107,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
 if __name__ == '__main__':
 
     pre_hour = 24
-    root_dir = f"{pre_hour}h_old2"
+    root_dir = f"{pre_hour}h"
 
     is_transfer = int(sys.argv[1])
     init_iteration = int(sys.argv[2])
@@ -120,18 +120,18 @@ if __name__ == '__main__':
     PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}/'
 
     # 训练集的X和Y
-    key_component = f"{pre_hour}_df_rm1_norm1"
+    file_flag = f"{pre_hour}_df_rm1_miss2_norm1"
     train_x = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, f"all_x_train_{key_component}.feather"))
+        os.path.join(DATA_SOURCE_PATH, f"all_x_train_{file_flag}.feather"))
     train_y = pd.read_feather(
-        os.path.join(DATA_SOURCE_PATH, f"all_y_train_{key_component}.feather"))['Label']
+        os.path.join(DATA_SOURCE_PATH, f"all_y_train_{file_flag}.feather"))['Label']
 
     # ----- work space -----
     # 引入自定义日志类
     my_logger = MyLog().logger
 
     # ----- similarity learning para -----
-    step = 5
+    step = 2
     l_rate = 0.00001
     select_rate = 0.1
     regularization_c = 0.05
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     # 做迁移时才会有这个全局模型参数
     glo_tl_boost_num = 500
     xgb_boost_num = 50
-    pool_nums = 15
+    pool_nums = 20
     n_personal_model_each_iteration = 1000
 
     # 迁移模型
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     # ----- init weight  | dataFrame 格式，有header行，没index索引列-----
     if init_iteration == 0:
         # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
-        file_name = '0007_24h_global_xgb_feature_weight_boost500.csv'
+        file_name = f'0007_{pre_hour}h_global_xgb_feature_weight_boost500.csv'
         psm_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name)).squeeze().tolist()
     else:
         file_name = f'0008_{pre_hour}h_{init_iteration}_psm_boost{xgb_boost_num}_{transfer_flag}.csv'

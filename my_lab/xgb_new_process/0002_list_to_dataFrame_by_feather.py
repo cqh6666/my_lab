@@ -10,8 +10,11 @@ no feature filtration
 use multi-process and shared-memory
 
 #2022-4-19
+用药和手术改为距离
 
 """
+import os
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -248,13 +251,17 @@ end_year = 2018
 
 my_logger = MyLog().logger
 
+root_dir = f"{pre_hour}h"
+RAW_DATA_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/yuanborong/data/row_data_encounterId/"
+DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"
+
 # load map data: list of feature name 获取特征名
 map_file_path = "/home/xzhang_sta/work/yuanborong/data/row_data/feature_dict_BDAI_map.pkl"
 s_map_data = joblib.load(map_file_path)
 # 增加 病人ID 一列
 s_map_data.insert(0, "encounter_id")
 # 保存为csv文件 feature_dict_BDAI_map.pkl -> old_feature_map.csv
-feature_map_file = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/old_feature_map.csv"
+feature_map_file = os.path.join(DATA_SOURCE_PATH, "old_feature_map.csv")
 old_feature_map = pd.DataFrame(data=s_map_data)
 old_feature_map.to_csv(feature_map_file)
 my_logger.info(f"save feature map csv to - [{feature_map_file}]")
@@ -267,8 +274,8 @@ for year in range(start_year, end_year + 1):
     # init the total of samples whose stay was less than 1 day
     throw_idx = []
     # set the input file and output file 输入是list格式，输出是dataFrame格式
-    string_list_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/yuanborong/data/row_data_encounterId/{year}_string2list.pkl"
-    save_file_path = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/{year}_{pre_hour}h_list2dataframe.feather"
+    string_list_file_path = os.path.join(RAW_DATA_PATH, f"{year}_string2list.pkl")
+    save_file_path = os.path.join(DATA_SOURCE_PATH, f"{year}_{pre_hour}h_list2dataframe.feather")
 
     # 读取list格式的数据
     list_data = joblib.load(string_list_file_path)
