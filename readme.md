@@ -25,7 +25,7 @@ conda create
 ## 删除旧日志
 cd 当前目录
 find . -mtime +5 -name "*.log" -exec rm -rf {} \;
-
+find . -name "0009*.log" -exec rm -rf {} \;
 
 ### 查看日志
 - 按时间

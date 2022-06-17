@@ -1,0 +1,17 @@
+#!/bin/sh
+
+is_transfer=$1
+iter=$2
+local_boost=$3
+
+start=0
+final=21613
+step=2220
+end=$step
+
+while [ $start -lt $final ]
+do
+  sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_xgb_old/0009_test_KL_use_XGB_local.sh ${is_transfer} ${iter} ${local_boost} ${start} ${end}
+  let start=start+$step
+  let end=end+$step
+done

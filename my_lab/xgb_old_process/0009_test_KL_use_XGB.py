@@ -97,14 +97,13 @@ def get_feature_weight_list():
     # 读取相似性度量
     if learned_metric_iteration == 0:
         # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
-        file_name = '0007_24h_global_xgb_feature_weight_boost500.csv'
-        normalize_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
+        file_name = f'0007_{pre_hour}h_shap_value_xgb_boost{glo_tl_boost_num}.csv'
+        psm_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name))
     else:
-        file_name = f'0008_{pre_hour}h_{learned_metric_iteration}_psm_boost{xgb_boost_num}{transfer_flag}.csv'
-        normalize_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
+        file_name = f'0008_{pre_hour}h_{learned_metric_iteration}_psm_boost{xgb_boost_num}_{transfer_flag}.csv'
+        psm_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, file_name))
 
-    f_weight = pd.read_csv(normalize_weight)
-    f_weight = f_weight.squeeze().tolist()
+    f_weight = psm_weight.squeeze().tolist()
     return f_weight
 
 
@@ -120,7 +119,7 @@ if __name__ == '__main__':
     my_logger = MyLog().logger
 
     is_transfer = int(sys.argv[1])
-    learned_metric_iteration = str(sys.argv[2])
+    learned_metric_iteration = int(sys.argv[2])
     start_idx = int(sys.argv[3])
     end_idx = int(sys.argv[4])
 
@@ -128,7 +127,7 @@ if __name__ == '__main__':
     xgb_thread_num = 1
     select_ratio = 0.1
     m_sample_weight = 0.01
-    pool_nums = 20
+    pool_nums = 25
     xgb_boost_num = 50
     glo_tl_boost_num = 500
 
@@ -137,8 +136,10 @@ if __name__ == '__main__':
     root_dir = f"{pre_hour}h_old2"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
     XGB_MODEL_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}/'
-    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_result_{transfer_flag}'
+    # psm load path
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}_shap/'
+    # save path
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_result_{transfer_flag}_shap'
 
     key_component = f"{pre_hour}_df_rm1_norm1"
     # 训练集的X和Y

@@ -36,7 +36,7 @@ def personalized_modeling(pre_data, idx, x_test):
     select_train_y = train_y.iloc[select_id]
 
     if is_transfer == 1:
-        init_weight = global_init_normalize_weight
+        init_weight = global_feature_weight
         fit_train = select_train_x * init_weight
         fit_test = x_test * init_weight
     else:
@@ -65,10 +65,9 @@ def get_feature_weight_list(metric_iter):
     :return:
     """
     if metric_iter == 0:
-        p_weight_file = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_liblinear_{global_lr_iter}.csv")
+        p_weight_file = os.path.join(MODEL_SAVE_PATH, f"0007_{pre_hour}h_0_psm_global_lr_{global_lr_iter}.csv")
     else:
-        p_weight_file_name = f"0008_{pre_hour}h_{metric_iter}_psm_{transfer_flag}.csv"
-        p_weight_file = os.path.join(PSM_SAVE_PATH, p_weight_file_name)
+        p_weight_file = os.path.join(PSM_SAVE_PATH, f"0008_{pre_hour}h_{metric_iter}_psm_{transfer_flag}.csv")
 
     p_weight = pd.read_csv(p_weight_file).squeeze().tolist()
     return p_weight
@@ -93,17 +92,17 @@ def get_train_test_data():
 
 if __name__ == '__main__':
 
-    start_idx = int(sys.argv[1])
-    end_idx = int(sys.argv[2])
-    is_transfer = int(sys.argv[3])
-    learned_metric_iteration = int(sys.argv[4])
+    is_transfer = int(sys.argv[1])
+    learned_metric_iteration = int(sys.argv[2])
+    start_idx = int(sys.argv[3])
+    end_idx = int(sys.argv[4])
 
     transfer_flag = "no_transfer" if is_transfer == 0 else "transfer"
 
     pre_hour = 24
     select_ratio = 0.1
     m_sample_weight = 0.01
-    pool_nums = 20
+    pool_nums = 25
     global_lr_iter = 400
     local_lr_iter = 100
 
@@ -122,9 +121,9 @@ if __name__ == '__main__':
     end_idx = final_idx if end_idx > final_idx else end_idx
     len_split = int(train_x.shape[0] * select_ratio)  # the number of selected train data
 
-    # 全局迁移策略 需要用到初始的csv
-    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0006_{pre_hour}h_global_lr_liblinear_{global_lr_iter}.csv")
-    global_init_normalize_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
+    # 全局迁移策略或初始迭代 需要用到初始的csv
+    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0007_{pre_hour}h_global_weight_lr_{global_lr_iter}.csv")
+    global_feature_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 
     # 读取迭代了k次的相似性度量csv文件
     psm_weight = get_feature_weight_list(metric_iter=learned_metric_iteration)

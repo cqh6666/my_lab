@@ -74,8 +74,8 @@ def get_psm_dist(start_idx, max_idx, step_idx, dist_type="cosine"):
 
 if __name__ == '__main__':
 
-    max_idx = 20
-    step_idx = 1
+    max_idx = 50
+    step_idx = 5
     pre_hour = 24
     is_transfer = int(sys.argv[1])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
@@ -83,14 +83,14 @@ if __name__ == '__main__':
 
     root_dir = f"{pre_hour}h_old2"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # ÑµÁ·¼¯µÄXºÍY
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/{transfer_flag}_psm_liblinear/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/psm_{transfer_flag}/'
     INIT_PSM_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
     TEMP_RESULT_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/temp_result/"
 
-    init_psm_file = "0006_24h_global_lr_500.csv"
+    init_psm_file = f"0006_{pre_hour}h_global_lr_liblinear_400.csv"
 
     my_logger = MyLog().logger
 
-    get_psm_dist(start_idx=1, max_idx=max_idx, step_idx=step_idx, dist_type="euclidean")
-    get_psm_dist(start_idx=1, max_idx=max_idx, step_idx=step_idx, dist_type="cosine")
+    get_psm_dist(start_idx=5, max_idx=max_idx, step_idx=step_idx, dist_type="euclidean")
+    get_psm_dist(start_idx=5, max_idx=max_idx, step_idx=step_idx, dist_type="cosine")
 

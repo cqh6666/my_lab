@@ -28,13 +28,13 @@ def get_concat_result(file_flag):
     """
     concat_start = time.time()
     # 遍历文件夹
-    all_files = os.listdir(CSV_RESULT_PATH)
+    all_files = os.listdir(TEST_RESULT_PATH)
     all_result = pd.DataFrame()
     count = 0
     for file in all_files:
         if file_flag in file:
             count += 1
-            result = pd.read_csv(os.path.join(CSV_RESULT_PATH, file), index_col=False)
+            result = pd.read_csv(os.path.join(TEST_RESULT_PATH, file), index_col=False)
             result['prob'] = result['prob'].str.strip('[]').astype(np.float64)
             all_result = pd.concat([all_result, result], axis=0)
             logger.info(f"load {file} csv and concat success!")
@@ -73,7 +73,7 @@ def save_result_file(score):
 
 def cal_auc_result():
     """
-    读取csv文件，分别存有real和proba列，计算auc结果
+    读取csv文件，分别存有real和prob列，计算auc结果
     :return:
     """
     result = pd.read_csv(all_result_file)
@@ -88,15 +88,13 @@ if __name__ == '__main__':
     learned_metric_iteration = str(sys.argv[2])
 
     pre_hour = 24
+    root_dir = f"{pre_hour}h_old2"
 
     logger = MyLog().logger
 
-    # 是否迁移，对应不同路径
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
-    root_dir = f"{pre_hour}h_old2"
-
-    CSV_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_result_{transfer_flag}/'
-    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_auc_{transfer_flag}/'
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_result_{transfer_flag}'
+    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_auc_{transfer_flag}'
 
     # 根据迭代次数查找到所有的分批量（每1500个）的预测概率csv文件夹
     flag = f"0009_{learned_metric_iteration}_"
@@ -105,14 +103,10 @@ if __name__ == '__main__':
     # 先合并再计算auc
     all_result_file = os.path.join(AUC_RESULT_PATH, all_prob_csv_name)
     # 将最终的auc结果进行保存
-    auc_result_file = os.path.join(AUC_RESULT_PATH, f"{pre_hour}h_lr_old_auc_result_{transfer_flag}.csv")
+    auc_result_file = os.path.join(AUC_RESULT_PATH, f"24h_xgb_old_auc_result_{transfer_flag}.csv")
 
     if os.path.exists(all_result_file):
         logger.warning(f"exist {all_result_file}, will not concat and cal result...")
     else:
         get_concat_result(flag)
         cal_auc_result()
-
-    # ================================ end ===================================
-    # 等结果够多才进行绘制图像
-    # process_and_plot_result()

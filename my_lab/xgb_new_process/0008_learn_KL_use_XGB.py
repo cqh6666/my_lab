@@ -131,7 +131,7 @@ if __name__ == '__main__':
     my_logger = MyLog().logger
 
     # ----- similarity learning para -----
-    step = 2
+    step = 5
     l_rate = 0.00001
     select_rate = 0.1
     regularization_c = 0.05
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     # 做迁移时才会有这个全局模型参数
     glo_tl_boost_num = 500
     xgb_boost_num = 50
-    pool_nums = 20
+    pool_nums = 30
     n_personal_model_each_iteration = 1000
 
     # 迁移模型

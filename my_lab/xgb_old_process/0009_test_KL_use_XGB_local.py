@@ -80,7 +80,7 @@ def personalized_modeling(pre_data, idx, x_test):
     # my_logger.info(f"idx:{idx} | build time:{run_time}s")
 
 
-def get_train_test_data(key_component):
+def get_train_test_data():
     train_x = pd.read_feather(
         os.path.join(DATA_SOURCE_PATH, f"all_x_train_{key_component}.feather"))
     train_y = pd.read_feather(
@@ -120,28 +120,31 @@ if __name__ == '__main__':
 
     is_transfer = int(sys.argv[1])
     learned_metric_iteration = int(sys.argv[2])
-    start_idx = int(sys.argv[3])
-    end_idx = int(sys.argv[4])
+    local_boost = int(sys.argv[3])
+    start_idx = int(sys.argv[4])
+    end_idx = int(sys.argv[5])
 
     pre_hour = 24
     xgb_thread_num = 1
     select_ratio = 0.1
     m_sample_weight = 0.01
-    pool_nums = 20
-    xgb_boost_num = 50
+    pool_nums = 25
+    xgb_boost_num = local_boost
     glo_tl_boost_num = 500
 
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     # ----- work space -----
-    root_dir = f"{pre_hour}h"
+    root_dir = f"{pre_hour}h_old2"
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
     XGB_MODEL_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}/'
-    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_result_{transfer_flag}'
+    # psm load path
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}_local{xgb_boost_num}/'
+    # save path
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_result_{transfer_flag}_local{xgb_boost_num}'
 
-    file_flag = f"{pre_hour}_df_rm1_miss2_norm1"
+    key_component = f"{pre_hour}_df_rm1_norm1"
     # 训练集的X和Y
-    train_x, train_y, test_x, test_y = get_train_test_data(file_flag)
+    train_x, train_y, test_x, test_y = get_train_test_data()
 
     final_idx = test_x.shape[0]
     end_idx = final_idx if end_idx > final_idx else end_idx  # 不得大过最大值

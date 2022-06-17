@@ -43,7 +43,6 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
 
     top_5_idx = similar_rank.iloc[:5, 0].values
     top_5_dis = similar_rank.iloc[:5, 1].values
-    my_logger.info(f"[{I_idx}]: similar_idx:{top_5_idx}, similar_distance:{top_5_dis}")
     # 10%的数据 个性化建模
     x_train = train_rank_x.iloc[select_id, :]
     y_train = train_rank_y.iloc[select_id]
@@ -83,6 +82,7 @@ def learn_similarity_measure(pre_data, true, I_idx, X_test):
     finally:
         lock.release()
 
+    my_logger.info(f"[{I_idx}]: similar_idx:{top_5_idx}, similar_distance:{top_5_dis}, y_predict:{y_predict}, ")
 
 
 if __name__ == '__main__':
@@ -193,7 +193,6 @@ if __name__ == '__main__':
         new_similar = iteration_data * normalize_weight
 
         all_error = new_similar.sum(axis=1)
-
         new_ki = []
         risk_gap = [real - pred for real, pred in zip(list(iteration_y), list(all_error))]
         # 具有单列或单行的数据被Squeeze为一个Series。
@@ -202,7 +201,7 @@ if __name__ == '__main__':
             plus_list = [a * b for a, b in zip(risk_gap, features_x)]
             new_value = value + l_rate * (sum(plus_list) - regularization_c * value)
             new_ki.append(new_value)
-
+        my_logger.info(new_ki[:10])
         new_ki = list(map(lambda x: x if x > 0 else 0, new_ki))
         normalize_weight = new_ki.copy()
         # list -> dataframe

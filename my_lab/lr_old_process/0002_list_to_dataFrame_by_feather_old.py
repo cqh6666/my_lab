@@ -165,7 +165,7 @@ def get_px(idx, input_data, input_t_time, pre_day, map_data, all_sample):
             px_times = input_data[m][1]
             px_times = list(map(float, px_times))
             px_times_before_pre = [x for x in px_times if input_t_time - med_windows + 1 <= x <= input_t_time]
-            px_val = len(px_times_before_pre) # 措施次数
+            px_val = len(px_times_before_pre)  # 措施次数
             all_sample[idx][index_num] = px_val
         except:
             continue
