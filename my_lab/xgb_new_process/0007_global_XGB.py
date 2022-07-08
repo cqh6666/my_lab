@@ -101,7 +101,7 @@ def get_important_weight(boost, weight_name="weight"):
 
 def get_train_test_data():
     """
-    获取就预处理方式的数据集：即 px,med换成7天内次数
+    新预处理方式
     :return:
     """
     train_x = pd.read_feather(

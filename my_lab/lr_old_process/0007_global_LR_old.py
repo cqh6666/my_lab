@@ -14,11 +14,9 @@ __author__ = 'cqh'
 
 import pickle
 import random
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-from sklearn.preprocessing import StandardScaler
 
 from my_logger import MyLog
 import time

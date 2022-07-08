@@ -111,13 +111,15 @@ if __name__ == '__main__':
 
     is_transfer = int(sys.argv[1])
     init_iteration = int(sys.argv[2])
+    # 5 / 20 =========== default:10
+    select = int(sys.argv[3])
 
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     cur_iteration = init_iteration + 1
 
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"
     XGB_MODEL_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}_select{select}/'
 
     # 训练集的X和Y
     key_component = f"{pre_hour}_df_rm1_norm1"
@@ -133,7 +135,7 @@ if __name__ == '__main__':
     # ----- similarity learning para -----
     step = 5
     l_rate = 0.00001
-    select_rate = 0.1
+    select_rate = select * 0.01
     regularization_c = 0.05
     m_sample_weight = 0.01
 
@@ -152,7 +154,7 @@ if __name__ == '__main__':
         xgb_model = None
 
     my_logger.warning(
-        f"[params] - transfer_flag:{transfer_flag}, init_iter:{init_iteration}, step:{step}, xgb_boost_num:{xgb_boost_num}, pool_nums:{pool_nums}, personal_model:{n_personal_model_each_iteration}")
+        f"[params] - transfer_flag:{transfer_flag}, init_iter:{init_iteration}, select:{select}, step:{step}, xgb_boost_num:{xgb_boost_num}, pool_nums:{pool_nums}, personal_model:{n_personal_model_each_iteration}")
 
     # ----- init weight  | dataFrame 格式，有header行，没index索引列-----
     if init_iteration == 0:

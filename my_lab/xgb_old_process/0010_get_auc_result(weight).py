@@ -85,8 +85,7 @@ def cal_auc_result():
 if __name__ == '__main__':
     # input params
     is_transfer = int(sys.argv[1])
-    learned_metric_iteration = int(sys.argv[2])
-    select = int(sys.argv[3])
+    learned_metric_iteration = str(sys.argv[2])
 
     pre_hour = 24
     root_dir = f"{pre_hour}h_old2"
@@ -94,8 +93,8 @@ if __name__ == '__main__':
     logger = MyLog().logger
 
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
-    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_result_{transfer_flag}_select{select}/'
-    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_auc_{transfer_flag}_select{select}/'
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_result_{transfer_flag}'
+    AUC_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/test_auc_{transfer_flag}'
 
     # 根据迭代次数查找到所有的分批量（每1500个）的预测概率csv文件夹
     flag = f"0009_{learned_metric_iteration}_"

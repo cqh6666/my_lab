@@ -123,7 +123,7 @@ if __name__ == '__main__':
     my_logger.warning(
         f"[params] - is_transfer:{is_transfer}, init_iter:{init_iteration}, pool_nums:{pool_nums}, n_personal_model:{n_personal_model_each_iteration}, global_lr:{global_lr_iter}, local_lr:{local_lr_iter}")
 
-    # 全局迁移策略或初始迭代 需要用到初始的csv
+    # 全局迁移策略 需要用到初始的csv
     init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0007_{pre_hour}h_global_weight_lr_{global_lr_iter}.csv")
     global_feature_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 

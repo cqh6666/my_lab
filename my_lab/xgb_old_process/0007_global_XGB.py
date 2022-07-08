@@ -14,6 +14,7 @@ import os
 from my_logger import MyLog
 import time
 import sys
+import shap
 
 def get_xgb_params():
     params = {

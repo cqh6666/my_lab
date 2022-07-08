@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"
     XGB_MODEL_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
-    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}/'
+    PSM_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/psm_{transfer_flag}_shap/'
 
     # 训练集的X和Y
     key_component = f"{pre_hour}_df_rm1_norm1"
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     # ----- init weight  | dataFrame 格式，有header行，没index索引列-----
     if init_iteration == 0:
         # 初始权重csv以全局模型迭代100次的模型的特征重要性,赢在起跑线上。
-        file_name = '0007_24h_global_xgb_feature_weight_boost500.csv'
+        file_name = f'0007_{pre_hour}h_shap_value_xgb_boost{glo_tl_boost_num}.csv'
         psm_weight = pd.read_csv(os.path.join(XGB_MODEL_PATH, file_name)).squeeze().tolist()
     else:
         file_name = f'0008_{pre_hour}h_{init_iteration}_psm_boost{xgb_boost_num}_{transfer_flag}.csv'
