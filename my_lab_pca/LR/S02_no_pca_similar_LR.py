@@ -12,20 +12,19 @@
 """
 __author__ = 'cqh'
 
-import os
 import sys
-import threading
+from threading import Lock
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 import pickle
 import pandas as pd
-from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
 from utils_api import get_train_test_data, covert_time_format
+from lr_utils_api import get_init_similar_weight, get_transfer_weight
 from my_logger import MyLog
 
 warnings.filterwarnings('ignore')
@@ -83,7 +82,7 @@ def personalized_modeling(test_id, pre_data_select):
 
     global_lock.acquire()
     test_result.loc[test_id, 'prob'] = predict_prob
-    test_similar_patient_ids[test_id] = patient_ids
+    # test_similar_patient_ids[test_id] = patient_ids
     global_lock.release()
 
     end_time = time.time()
@@ -96,24 +95,28 @@ if __name__ == '__main__':
 
     pre_hour = 24
     root_dir = f"{pre_hour}h"
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{pre_hour}h/global_model/'
 
-    pool_nums = 25
+    pool_nums = 30
     test_select = 100
     select_ratio = 0.1
     m_sample_weight = 0.01
 
     local_lr_iter = 100
 
-    xgb_boost_num = 50
-    xgb_thread_num = 1
+    is_transfer = int(sys.argv[1])
+    transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
+    init_similar_weight = get_init_similar_weight()
+    global_feature_weight = get_transfer_weight(is_transfer)
+
+    version = 1
+    # ================== save file name ====================
+    patient_ids_list_file_name = f"./result/S02_test_similar_patient_ids_LR_{transfer_flag}_v{version}.pkl"
+    test_result_file_name = f"./result/S02_test_result_LR_{transfer_flag}_v{version}.csv"
+    # =====================================================
 
     my_logger.warning(
         f"[params] - model_select:LR, pool_nums:{pool_nums}, test_select:{test_select}")
-
-    init_similar_weight_file = os.path.join(MODEL_SAVE_PATH, f'0007_{pre_hour}h_global_xgb_feature_weight_boost500.csv')
-    init_similar_weight = pd.read_csv(init_similar_weight_file).squeeze().tolist()
 
     # 获取数据
     train_data, test_data = get_train_test_data()
@@ -132,8 +135,6 @@ if __name__ == '__main__':
     test_data_y = test_data['Label']
     test_data_x = test_data.drop(['Label'], axis=1)
 
-    # pca降维
-    pca = PCA()
     # 抽1000个患者
     len_split = int(select_ratio * train_data.shape[0])
     test_id_list = test_data_x.index.values
@@ -143,7 +144,7 @@ if __name__ == '__main__':
 
     test_similar_patient_ids = {}
 
-    global_lock = threading.Lock()
+    global_lock = Lock()
     my_logger.warning("starting ...")
     s_t = time.time()
     # 匹配相似样本（从训练集） XGB建模 多线程
@@ -159,11 +160,11 @@ if __name__ == '__main__':
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
     # save test_similar_patient_ids
-    with open(f'./result/S02_test_similar_patient_ids_LR_v2.pkl', 'wb') as file:
-        pickle.dump(test_similar_patient_ids, file)
+    # with open(patient_ids_list_file_name, 'wb') as file:
+    #     pickle.dump(test_similar_patient_ids, file)
 
     # save result csv
-    test_result.to_csv(f"./result/S02_test_result_LR_v2.csv")
+    test_result.to_csv(test_result_file_name)
     y_test, y_pred = test_result['real'], test_result['prob']
     score = roc_auc_score(y_test, y_pred)
     my_logger.info(f"personalized auc is: {score}")

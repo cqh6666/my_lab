@@ -13,9 +13,7 @@
 __author__ = 'cqh'
 
 import sys
-sys.path.append("..")
-import os
-import threading
+from threading import Lock
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
@@ -27,6 +25,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
 from utils_api import get_train_test_data, covert_time_format
+from lr_utils_api import get_transfer_weight, get_init_similar_weight
 from my_logger import MyLog
 
 warnings.filterwarnings('ignore')
@@ -92,29 +91,19 @@ if __name__ == '__main__':
 
     my_logger = MyLog().logger
 
-    pre_hour = 24
-    root_dir = f"{pre_hour}h"
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
-    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/global_model/'
-
     pool_nums = 30
     test_select = 100
     select_ratio = 0.1
     m_sample_weight = 0.01
 
-    global_lr_iter = 400
     local_lr_iter = 100
 
-    xgb_boost_num = 50
-    xgb_thread_num = 1
-    n_components = 4000
+    n_components = 3000
 
     is_transfer = int(sys.argv[1])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
-    if is_transfer == 1:
-        # 全局迁移策略 需要用到初始的csv
-        init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0007_{pre_hour}h_global_weight_lr_{global_lr_iter}.csv")
-        global_feature_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
+    init_similar_weight = get_init_similar_weight()
+    global_feature_weight = get_transfer_weight(is_transfer)
 
     version = 1
     # ================== save file name ====================
@@ -124,9 +113,6 @@ if __name__ == '__main__':
 
     my_logger.warning(
         f"[params] - version:{version}, model_select:LR, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, test_select:{test_select}")
-
-    init_similar_weight_file = os.path.join(MODEL_SAVE_PATH, f"0007_{pre_hour}h_0_psm_global_lr_{global_lr_iter}.csv")
-    init_similar_weight = pd.read_csv(init_similar_weight_file).squeeze().tolist()
 
     # 获取数据
     train_data, test_data = get_train_test_data()
@@ -164,7 +150,7 @@ if __name__ == '__main__':
 
     test_similar_patient_ids = {}
 
-    global_lock = threading.Lock()
+    global_lock = Lock()
     my_logger.warning("starting personalized modelling...")
     s_t = time.time()
     # 匹配相似样本（从训练集） 个性化建模 多线程

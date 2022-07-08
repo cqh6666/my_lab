@@ -12,7 +12,6 @@
 """
 __author__ = 'cqh'
 
-import os
 import sys
 import threading
 import time
@@ -20,35 +19,16 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import xgboost as xgb
 
-import pickle
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.metrics import roc_auc_score
 
 from utils_api import get_train_test_data, covert_time_format
+from xgb_utils_api import get_local_xgb_para, get_xgb_model_pkl, get_init_similar_weight
+
 from my_logger import MyLog
 
 warnings.filterwarnings('ignore')
-
-
-def get_local_xgb_para():
-    """personal xgb para"""
-    params = {
-        'booster': 'gbtree',
-        'max_depth': 11,
-        'min_child_weight': 7,
-        'subsample': 1,
-        'colsample_bytree': 0.7,
-        'eta': 0.05,
-        'objective': 'binary:logistic',
-        'nthread': xgb_thread_num,
-        'verbosity': 0,
-        'eval_metric': 'logloss',
-        'seed': 998,
-        'tree_method': 'hist'
-    }
-    num_boost_round = xgb_boost_num
-    return params, num_boost_round
 
 
 def get_similar_rank(pca_pre_data_select):
@@ -74,7 +54,6 @@ def get_similar_rank(pca_pre_data_select):
 
 def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
     d_train_local = xgb.DMatrix(fit_train_x, label=fit_train_y, weight=sample_ki)
-    params, num_boost_round = get_local_xgb_para()
     xgb_local = xgb.train(params=params,
                           dtrain=d_train_local,
                           num_boost_round=num_boost_round,
@@ -112,28 +91,22 @@ if __name__ == '__main__':
 
     my_logger = MyLog().logger
 
-    pre_hour = 24
-    root_dir = f"{pre_hour}h"
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"  # 训练集的X和Y
-    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{pre_hour}h/global_model/'
-
     pool_nums = 30
-    test_select = 100
+    test_select = 1000
     select_ratio = 0.1
     m_sample_weight = 0.01
-    n_components = 0.9
 
     xgb_boost_num = 50
     xgb_thread_num = 1
 
+    n_components = 3000
+
+    params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
     is_transfer = int(sys.argv[1])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
-    # 迁移模型
-    if is_transfer == 1:
-        xgb_model_file = os.path.join(MODEL_SAVE_PATH, f"0007_{pre_hour}h_global_xgb_boost500.pkl")
-        xgb_model = pickle.load(open(xgb_model_file, "rb"))
-    else:
-        xgb_model = None
+
+    xgb_model = get_xgb_model_pkl(is_transfer)
+    init_similar_weight = get_init_similar_weight()
 
     version = 1
     # ================== save file name ====================
@@ -143,9 +116,6 @@ if __name__ == '__main__':
 
     my_logger.warning(
         f"[params] - version:{version}, model_select:XGB, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, test_select:{test_select}")
-
-    init_similar_weight_file = os.path.join(MODEL_SAVE_PATH, f'0007_{pre_hour}h_global_xgb_feature_weight_boost500.csv')
-    init_similar_weight = pd.read_csv(init_similar_weight_file).squeeze().tolist()
 
     # 获取数据
     train_data, test_data = get_train_test_data()
@@ -159,9 +129,9 @@ if __name__ == '__main__':
     test_data_y = test_data['Label']
     test_data_x = test_data.drop(['Label'], axis=1)
 
-    my_logger.warning(f"load_data: {train_data.shape}, {test_data.shape}")
-    my_logger.warning(f"starting pca by test_data...")
+    my_logger.warning(f"train_data:{train_data.shape}, test_data:{test_data.shape}")
 
+    my_logger.warning(f"starting pca by test_data...")
     # pca降维
     pca_model = PCA(n_components=n_components, random_state=2022)
     # 转换需要 * 相似性度量
@@ -208,4 +178,4 @@ if __name__ == '__main__':
     test_result.to_csv(test_result_file_name)
     y_test, y_pred = test_result['real'], test_result['prob']
     score = roc_auc_score(y_test, y_pred)
-    my_logger.info(f"personalized auc is: {score}")
+    my_logger.warning(f"personalized auc is: {score}")
