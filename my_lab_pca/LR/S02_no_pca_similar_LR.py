@@ -98,7 +98,7 @@ if __name__ == '__main__':
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{pre_hour}h/global_model/'
 
     pool_nums = 30
-    test_select = 100
+    test_select = 1000
     select_ratio = 0.1
     m_sample_weight = 0.01
 
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     # 处理数据
     train_data.set_index(["ID"], inplace=True)
 
-    test_data = test_data.sample(n=test_select, random_state=2022)
+    test_data = test_data.sample(n=test_select)
     test_data.set_index(["ID"], inplace=True)
 
     my_logger.warning(f"load_data: {train_data.shape}, {test_data.shape}")

@@ -25,8 +25,6 @@ MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_w
 all_data_file = f"all_{pre_hour}_df_rm1_norm1.feather"
 
 
-
-
 def get_train_test_data(test_size=0.15):
     """
     得到完整的数据 train_data, test_data
@@ -37,6 +35,13 @@ def get_train_test_data(test_size=0.15):
     all_samples = pd.read_feather(all_data_path)
     train_data, test_data = train_test_split(all_samples, test_size=test_size, random_state=2022)
     return train_data, test_data
+
+
+def get_train_x_y_data():
+    train_data, _ = get_train_test_data()
+    train_data_x = train_data.drop(['ID', 'Label'], axis=1)
+    train_data_y = train_data['Label']
+    return train_data_x, train_data_y
 
 
 def covert_time_format(seconds):

@@ -92,13 +92,13 @@ if __name__ == '__main__':
     my_logger = MyLog().logger
 
     pool_nums = 30
-    test_select = 100
+    test_select = 1000
     select_ratio = 0.1
     m_sample_weight = 0.01
 
     local_lr_iter = 100
 
-    n_components = 3000
+    n_components = 2000
 
     is_transfer = int(sys.argv[1])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     train_data_x = train_data.drop(['Label'], axis=1)
     # ¥¶¿Ìtest_data
     test_data.set_index(["ID"], inplace=True)
-    test_data = test_data.sample(n=test_select, random_state=2022)
+    test_data = test_data.sample(n=test_select)
     test_data_y = test_data['Label']
     test_data_x = test_data.drop(['Label'], axis=1)
 

@@ -125,7 +125,7 @@ if __name__ == '__main__':
     train_data_x = train_data.drop(['Label'], axis=1)
     # ´¦Àítest_data
     test_data.set_index(["ID"], inplace=True)
-    test_data = test_data.sample(n=test_select, random_state=2022)
+    test_data = test_data.sample(n=test_select)
     test_data_y = test_data['Label']
     test_data_x = test_data.drop(['Label'], axis=1)
 

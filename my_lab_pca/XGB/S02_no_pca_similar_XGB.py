@@ -96,7 +96,7 @@ if __name__ == '__main__':
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
 
     pool_nums = 30
-    test_select = 100
+    test_select = 1000
     select_ratio = 0.1
     m_sample_weight = 0.01
 
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     train_data_y = train_data['Label']
     train_data_x = train_data.drop(['Label'], axis=1)
 
-    test_data = test_data.sample(n=test_select, random_state=2022)
+    test_data = test_data.sample(n=test_select)
     test_data.set_index(["ID"], inplace=True)
     test_data_y = test_data['Label']
     test_data_x = test_data.drop(['Label'], axis=1)
