@@ -19,7 +19,6 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import xgboost as xgb
 
-import pickle
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
@@ -84,7 +83,7 @@ def personalized_modeling(test_id, pre_data_select):
     global_lock.release()
 
     end_time = time.time()
-    my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
+    # my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
 
 
 if __name__ == '__main__':

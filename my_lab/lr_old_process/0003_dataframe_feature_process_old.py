@@ -214,8 +214,8 @@ def run(start_year=2010, end_year=2018):
     # load data
     all_samples = collect_all_samples(file_name="list2dataframe.feather", start_year=start_year, end_year=end_year)
 
-    # drop days
-    all_samples.drop(['days'], axis=1, inplace=True)
+    # drop days lab817
+    all_samples.drop(['days', 'lab817'], axis=1, inplace=True)
 
     # feature process map
     old_feature_map = all_samples.columns
@@ -251,7 +251,8 @@ if __name__ == '__main__':
     pre_hour = 24
     # csv_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.csv'
     # pickle_file = '/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/24h/all_24h_dataframe_999_feature_remove.pkl'
-    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old2/"
+    root_dir = f"{pre_hour}h_old2"
+    DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"
     my_logger = MyLog().logger
 
     run()

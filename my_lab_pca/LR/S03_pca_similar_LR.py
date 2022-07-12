@@ -17,9 +17,8 @@ from threading import Lock
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-
-import pickle
 import pandas as pd
+
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
@@ -38,7 +37,7 @@ def get_similar_rank(pca_pre_data_select):
     :return:
     """
     try:
-        similar_rank = pd.DataFrame(index=train_data_x.index)
+        similar_rank = pd.DataFrame(index=pca_train_data_x.index)
         similar_rank['distance'] = abs(pca_train_data_x - pca_pre_data_select.values).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:len_split].values
@@ -58,7 +57,20 @@ def lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
     return predict_prob
 
 
-def personalized_modeling(test_id, pre_data_select, pca_pre_data_select):
+def fit_train_test_data(patient_ids, pre_data_select_x, is_tra):
+    fit_train_y = train_data_y.loc[patient_ids]
+    select_train_x = train_data_x.loc[patient_ids]
+    if is_tra == 1:
+        transfer_weight = global_feature_weight
+        fit_train_x = select_train_x * transfer_weight
+        fit_test_x = pre_data_select_x * transfer_weight
+    else:
+        fit_train_x = select_train_x
+        fit_test_x = pre_data_select_x
+    return fit_test_x, fit_train_x, fit_train_y
+
+
+def personalized_modeling(test_id, pre_data_select_x, pca_pre_data_select_x):
     """
     根据距离得到 某个目标测试样本对每个训练样本的距离
     :param test_id:
@@ -67,24 +79,18 @@ def personalized_modeling(test_id, pre_data_select, pca_pre_data_select):
     :return:
     """
     start_time = time.time()
-    patient_ids, sample_ki = get_similar_rank(pca_pre_data_select)
 
-    fit_train_x = train_data_x.loc[patient_ids]
-    fit_train_y = train_data_y.loc[patient_ids]
-    if is_transfer == 1:
-        init_weight = global_feature_weight
-        fit_train_x = fit_train_x * init_weight
-        fit_train_y = fit_train_y * init_weight
-
-    predict_prob = lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki)
+    patient_ids, sample_ki = get_similar_rank(pca_pre_data_select_x)
+    fit_test_x, fit_train_x, fit_train_y = fit_train_test_data(patient_ids, pre_data_select_x, is_transfer)
+    predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
 
     global_lock.acquire()
     test_result.loc[test_id, 'prob'] = predict_prob
-    test_similar_patient_ids[test_id] = patient_ids
+    # test_similar_patient_ids[test_id] = patient_ids
     global_lock.release()
 
     end_time = time.time()
-    my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
+    # my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
 
 
 if __name__ == '__main__':
@@ -98,8 +104,7 @@ if __name__ == '__main__':
 
     local_lr_iter = 100
 
-    n_components = 2000
-
+    n_components = int(sys.argv[2])
     is_transfer = int(sys.argv[1])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     init_similar_weight = get_init_similar_weight()
@@ -126,8 +131,8 @@ if __name__ == '__main__':
     test_data_y = test_data['Label']
     test_data_x = test_data.drop(['Label'], axis=1)
 
-    my_logger.warning(f"load_data: {train_data.shape}, {test_data.shape}")
-    my_logger.warning(f"starting pca by test_data...")
+    my_logger.warning(f"train_data: {train_data.shape}, test_data: {test_data.shape}")
+    my_logger.warning(f"starting pca by train_data...")
 
     # pca降维
     pca_model = PCA(n_components=n_components, random_state=2022)
@@ -140,7 +145,7 @@ if __name__ == '__main__':
 
     del new_train_data_x, new_test_data_x
 
-    my_logger.info(f"n_components: {pca_model.n_components}, svd_solver:{pca_model.svd_solver}.")
+    my_logger.info(f"n_components: {pca_model.n_components}, svd_solver: {pca_model.svd_solver}.")
 
     len_split = int(select_ratio * train_data.shape[0])
     test_id_list = pca_test_data_x.index.values
@@ -167,8 +172,8 @@ if __name__ == '__main__':
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
     # save test_similar_patient_ids
-    with open(patient_ids_list_file_name, 'wb') as file:
-        pickle.dump(test_similar_patient_ids, file)
+    # with open(patient_ids_list_file_name, 'wb') as file:
+    #     pickle.dump(test_similar_patient_ids, file)
 
     # save result csv
     test_result.to_csv(test_result_file_name)

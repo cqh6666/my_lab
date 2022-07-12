@@ -84,7 +84,7 @@ def personalized_modeling(test_id, pre_data_select, pca_pre_data_select):
     global_lock.release()
 
     end_time = time.time()
-    my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
+    # my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
 
 
 if __name__ == '__main__':
@@ -99,12 +99,12 @@ if __name__ == '__main__':
     xgb_boost_num = 50
     xgb_thread_num = 1
 
-    n_components = 3000
+    n_components = int(sys.argv[2])
 
-    params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
     is_transfer = int(sys.argv[1])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
+    params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
     xgb_model = get_xgb_model_pkl(is_transfer)
     init_similar_weight = get_init_similar_weight()
 
@@ -131,7 +131,7 @@ if __name__ == '__main__':
 
     my_logger.warning(f"train_data:{train_data.shape}, test_data:{test_data.shape}")
 
-    my_logger.warning(f"starting pca by test_data...")
+    my_logger.warning(f"starting pca by train_data...")
     # pca降维
     pca_model = PCA(n_components=n_components, random_state=2022)
     # 转换需要 * 相似性度量

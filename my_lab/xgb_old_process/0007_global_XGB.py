@@ -16,7 +16,8 @@ import time
 import sys
 import shap
 
-def get_xgb_params():
+
+def get_xgb_params(num_boost):
     params = {
         'booster': 'gbtree',
         'max_depth': 11,
@@ -27,24 +28,27 @@ def get_xgb_params():
         'objective': 'binary:logistic',
         'nthread': 20,
         'verbosity': 0,
-        'seed': 998,
+        'seed': 2022,
         'tree_method': 'hist'
     }
     num_boost_round = num_boost
     return params, num_boost_round
 
 
-def xgb_train_global(train_x, train_y, save=False):
+def xgb_train_global(train_x, train_y, num_boost, transfer_model=None, save=True):
     d_train = xgb.DMatrix(train_x, label=train_y)
     d_test = xgb.DMatrix(test_x, label=test_y)
 
-    params, num_boost_round = get_xgb_params()
     start = time.time()
+
+    params, num_boost_round = get_xgb_params(num_boost)
 
     model = xgb.train(params=params,
                       dtrain=d_train,
                       num_boost_round=num_boost_round,
-                      verbose_eval=False)
+                      verbose_eval=False,
+                      xgb_model=transfer_model)
+
     run_time = round(time.time() - start, 2)
 
     test_y_predict = model.predict(d_test)
@@ -53,18 +57,22 @@ def xgb_train_global(train_x, train_y, save=False):
 
     # save model
     if save:
-        model_file_name = os.path.join(MODEL_SAVE_PATH, f"{save_model_name}.pkl")
-        pickle.dump(model, open(model_file_name, "wb"))
-        my_logger.warning(f"save xgb model to pkl - [{model_file_name}]")
-        save_weight_importance(model, num_boost_round)
+        pickle.dump(model, open(xgb_global_model_file, "wb"))
+        my_logger.warning(f"save xgb model to pkl - [{xgb_global_model_file}]")
+        save_weight_importance(model)
 
 
-def xgb_train_sub_global(select_rate=0.1):
+def xgb_train_sub_global(num_boost, transfer_model=None, select_rate=0.1):
     train_x, train_y = get_sub_train_data(select_rate=select_rate)
-    my_logger.warning(f"start sub global({select_rate}) xgb training ...")
-    xgb_train_global(train_x, train_y, False)
+    if transfer_model == None:
+        transfer_flag = "transfer"
+    else:
+        transfer_flag = "no_transfer"
+    my_logger.warning(f"local xgb train params: select_rate:{select_rate}, is_transfer:{transfer_flag}, num_boost:{num_boost}")
+    xgb_train_global(train_x, train_y, num_boost=num_boost, transfer_model=transfer_model, save=False)
 
-def save_weight_importance(model, num_boost_round):
+
+def save_weight_importance(model):
     # get weights of feature
     weight_importance = model.get_score(importance_type='weight')
     # gain_importance = model.get_score(importance_type='gain')
@@ -86,20 +94,18 @@ def save_weight_importance(model, num_boost_round):
         result.loc[:] = weight
         result = result / result.sum()
         result.fillna(0, inplace=True)
-        save_name = os.path.join(MODEL_SAVE_PATH, f'0007_{pre_hour}h_global_xgb_feature_{name}_boost{num_boost_round}.csv')
-        result.to_csv(save_name, index=False)
-        my_logger.warning(f"save feature important weight to csv success! -{save_name}")
+        result.to_csv(init_psm_weight_file, index=False)
+        my_logger.warning(f"save feature important weight to csv success! -{init_psm_weight_file}")
 
 
-def get_important_weight(boost, weight_name="weight"):
-    file_name = f'0007_{pre_hour}h_global_xgb_feature_{weight_name}_boost{boost}.csv'
+def get_important_weight(file_name):
     weight_result = os.path.join(MODEL_SAVE_PATH, file_name)
     normalize_weight = pd.read_csv(weight_result)
     my_logger.info(normalize_weight.shape)
     my_logger.info(normalize_weight.head())
 
 
-def get_train_test_data():
+def get_train_test_data(key_component):
     """
     获取就预处理方式的数据集：即 px,med换成7天内次数
     :return:
@@ -129,11 +135,11 @@ def get_sub_train_data(select_rate):
     return train_x_, train_y_
 
 
-
 if __name__ == '__main__':
     # 自定义日志
     my_logger = MyLog().logger
-    num_boost = int(sys.argv[1])
+    global_num_boost = 500
+    local_num_boost = 50
     pre_hour = 24
 
     root_dir = f"{pre_hour}h_old2"
@@ -141,11 +147,19 @@ if __name__ == '__main__':
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
 
     key_component = f"{pre_hour}_df_rm1_norm1"
+    train_x, train_y, test_x, test_y = get_train_test_data(key_component)
 
-    train_x, train_y, test_x, test_y = get_train_test_data()
-
-    save_model_name = f'0007_{pre_hour}h_global_xgb_boost{num_boost}'
+    xgb_global_model_file = os.path.join(MODEL_SAVE_PATH, f'0007_{pre_hour}h_global_xgb_boost{global_num_boost}.pkl')
+    init_psm_weight_file = os.path.join(MODEL_SAVE_PATH,
+                                        f'0007_{pre_hour}h_global_xgb_feature_weight_boost{global_num_boost}.csv')
     remained_feature_file = os.path.join(DATA_SOURCE_PATH, f'remained_new_feature_map.csv')
 
-    # xgb_train_global(train_x, train_y, save=True)
-    xgb_train_sub_global(select_rate=0.1)
+    # global train
+    xgb_train_global(train_x, train_y, num_boost=global_num_boost, save=True)
+
+    # local train
+    xgb_model = pickle.load(open(xgb_global_model_file, "rb"))
+    # 迁移
+    xgb_train_sub_global(num_boost=local_num_boost, transfer_model=xgb_model, select_rate=0.1)
+    # 非迁移
+    xgb_train_sub_global(num_boost=local_num_boost, select_rate=0.1)

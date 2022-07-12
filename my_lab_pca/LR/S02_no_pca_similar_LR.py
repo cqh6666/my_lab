@@ -13,12 +13,11 @@
 __author__ = 'cqh'
 
 import sys
-from threading import Lock
 import time
 import warnings
+from threading import Lock
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
-import pickle
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
@@ -62,7 +61,7 @@ def lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
     return predict_prob
 
 
-def personalized_modeling(test_id, pre_data_select):
+def personalized_modeling(test_id, pre_data_select_x):
     """
     根据距离得到 某个目标测试样本对每个训练样本的距离
     test_id - patient id
@@ -70,15 +69,10 @@ def personalized_modeling(test_id, pre_data_select):
     :return: 最终的相似样本
     """
     start_time = time.time()
+
     patient_ids, sample_ki = get_similar_rank(pre_data_select)
-
-    # print("patient_id: ", patient_ids[:5])
-    # print("distance: ", sample_ki[:5])
-
-    fit_train_x = train_data_x.loc[patient_ids]
-    fit_train_y = train_data_y.loc[patient_ids]
-
-    predict_prob = lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki)
+    fit_test_x, fit_train_x, fit_train_y = fit_train_test_data(patient_ids, pre_data_select_x, is_transfer)
+    predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
 
     global_lock.acquire()
     test_result.loc[test_id, 'prob'] = predict_prob
@@ -86,7 +80,20 @@ def personalized_modeling(test_id, pre_data_select):
     global_lock.release()
 
     end_time = time.time()
-    my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
+    # my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
+
+
+def fit_train_test_data(patient_ids, pre_data_select_x, is_tra):
+    fit_train_y = train_data_y.loc[patient_ids]
+    select_train_x = train_data_x.loc[patient_ids]
+    if is_tra == 1:
+        transfer_weight = global_feature_weight
+        fit_train_x = select_train_x * transfer_weight
+        fit_test_x = pre_data_select_x * transfer_weight
+    else:
+        fit_train_x = select_train_x
+        fit_test_x = pre_data_select_x
+    return fit_test_x, fit_train_x, fit_train_y
 
 
 if __name__ == '__main__':
@@ -94,11 +101,11 @@ if __name__ == '__main__':
     my_logger = MyLog().logger
 
     pre_hour = 24
-    root_dir = f"{pre_hour}h"
+    root_dir = f"{pre_hour}h_old2"
     MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{pre_hour}h/global_model/'
 
     pool_nums = 30
-    test_select = 1000
+    test_select = 0.1
     select_ratio = 0.1
     m_sample_weight = 0.01
 
@@ -116,14 +123,14 @@ if __name__ == '__main__':
     # =====================================================
 
     my_logger.warning(
-        f"[params] - model_select:LR, pool_nums:{pool_nums}, test_select:{test_select}")
+        f"[params] - model_select:LR, trasfer_flag:{transfer_flag}, pool_nums:{pool_nums}, test_select:{test_select}")
 
     # 获取数据
     train_data, test_data = get_train_test_data()
     # 处理数据
     train_data.set_index(["ID"], inplace=True)
 
-    test_data = test_data.sample(n=test_select)
+    test_data = test_data.sample(frac=test_select)
     test_data.set_index(["ID"], inplace=True)
 
     my_logger.warning(f"load_data: {train_data.shape}, {test_data.shape}")

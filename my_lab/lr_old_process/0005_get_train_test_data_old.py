@@ -19,6 +19,7 @@ def get_data_from_feather_to_save(test_size=0.15):
     all_samples = pd.read_feather(load_data_file)
     my_logger.info(f"all samples: {all_samples.shape}")
     all_samples_y = all_samples['Label']
+    # LAB_817 Œﬁ“‚“Â
     all_samples_x = all_samples.drop(['ID', 'Label'], axis=1)
 
     x_train, x_test, y_train, y_test = train_test_split(all_samples_x, all_samples_y, test_size=test_size)
@@ -52,7 +53,6 @@ def save_dataFrame_to_feather(x_data, y_data, file_flag):
 
 if __name__ == '__main__':
     pre_hour = 24
-
     root_dir = f"{pre_hour}h_old2"
     DATA_SOURCE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/'
     miss_norm_file_name = f"{pre_hour}_df_rm1_norm1"
