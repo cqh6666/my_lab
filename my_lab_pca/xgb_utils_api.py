@@ -11,9 +11,11 @@
 -------------------------------------------------
 """
 __author__ = 'cqh'
+
 import pandas as pd
 import os
 import pickle
+import xgboost as xgb
 
 pre_hour = 24
 root_dir = f"{pre_hour}h_old2"
@@ -58,3 +60,25 @@ def get_local_xgb_para(xgb_thread_num=1, num_boost_round=50):
         'tree_method': 'hist'
     }
     return params, num_boost_round
+
+
+def get_xgb_global_model(fit_data, boost_num):
+    """
+    利用train_data得到全局模型
+    :param fit_data:
+    :param boost_num:
+    :return:
+    """
+    # 处理test_data
+    fit_train_y = fit_data['Label']
+    fit_train_x = fit_data.drop(['Label'], axis=1)
+    d_train = xgb.DMatrix(fit_train_x, label=fit_train_y)
+
+    param, boost_num = get_local_xgb_para(xgb_thread_num=-1, num_boost_round=boost_num)
+    model = xgb.train(params=param,
+                      dtrain=d_train,
+                      num_boost_round=boost_num,
+                      verbose_eval=False)
+
+    xgb_global_model_file = os.path.join(MODEL_SAVE_PATH, f'0007_{pre_hour}h_global_xgb_boost{boost_num}.pkl')
+    pickle.dump(model, open(xgb_global_model_file, "wb"))

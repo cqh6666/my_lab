@@ -15,6 +15,8 @@ __author__ = 'cqh'
 import pandas as pd
 import os
 
+from sklearn.linear_model import LogisticRegression
+
 pre_hour = 24
 root_dir = f"{pre_hour}h_old2"
 DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"
@@ -36,3 +38,4 @@ def get_transfer_weight(is_transfer):
         return global_feature_weight
     else:
         return None
+

@@ -1,47 +1,46 @@
-# -*- coding: gbk -*-
+# -*- coding: utf-8 -*-
 """
 -------------------------------------------------
-   File Name:     pca_similar
-   Description:   Ã»×öPCA´¦Àí£¬Ê¹ÓÃ³õÊ¼ÏàËÆĞÔ¶ÈÁ¿Æ¥ÅäÏàËÆÑù±¾£¬½øĞĞ¼ÆËãAUC
+   File Name:     S05_kth_avg
+   Description:   ...
    Author:        cqh
-   date:          2022/7/5 10:07
+   date:          2022/7/14 9:22
 -------------------------------------------------
    Change Activity:
-                  2022/7/5:
+                  2022/7/14:
 -------------------------------------------------
 """
 __author__ = 'cqh'
 
 import os
 import sys
-import threading
+from threading import Lock
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import xgboost as xgb
+from sklearn.decomposition import PCA
+from sklearn.metrics.pairwise import euclidean_distances
 
 import pandas as pd
-from sklearn.decomposition import PCA
 from sklearn.metrics import roc_auc_score
 
 from utils_api import get_train_test_data, covert_time_format
-from xgb_utils_api import get_local_xgb_para, get_xgb_model_pkl, get_init_similar_weight
-
 from my_logger import MyLog
+from xgb_utils_api import get_xgb_model_pkl, get_local_xgb_para, get_init_similar_weight
 
 warnings.filterwarnings('ignore')
 
 
 def get_similar_rank(pca_pre_data_select):
     """
-    Ñ¡ÔñÇ°10%µÄÑù±¾£¬²¢ÇÒ¸ù¾İÏàËÆµÃµ½Ñù±¾È¨ÖØ
+    é€‰æ‹©å‰10%çš„æ ·æœ¬ï¼Œå¹¶ä¸”æ ¹æ®ç›¸ä¼¼å¾—åˆ°æ ·æœ¬æƒé‡
     :param pca_pre_data_select:
     :return:
     """
     try:
         similar_rank = pd.DataFrame(index=train_data_x.index)
-        # get distance
-        similar_rank['distance'] = abs(pca_train_data_x - pca_pre_data_select.values).sum(axis=1)
+        similar_rank['distance'] = abs((pca_train_data_x - pca_pre_data_select.values)).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:len_split].values
 
@@ -55,6 +54,7 @@ def get_similar_rank(pca_pre_data_select):
 
 def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
     d_train_local = xgb.DMatrix(fit_train_x, label=fit_train_y, weight=sample_ki)
+
     xgb_local = xgb.train(params=params,
                           dtrain=d_train_local,
                           num_boost_round=num_boost_round,
@@ -67,10 +67,10 @@ def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
 
 def personalized_modeling(test_id, pre_data_select, pca_pre_data_select):
     """
-    ¸ù¾İ¾àÀëµÃµ½ Ä³¸öÄ¿±ê²âÊÔÑù±¾¶ÔÃ¿¸öÑµÁ·Ñù±¾µÄ¾àÀë
+    æ ¹æ®è·ç¦»å¾—åˆ° æŸä¸ªç›®æ ‡æµ‹è¯•æ ·æœ¬å¯¹æ¯ä¸ªè®­ç»ƒæ ·æœ¬çš„è·ç¦»
     test_id - patient id
     pre_data_select - dataframe
-    :return: ×îÖÕµÄÏàËÆÑù±¾
+    :return: æœ€ç»ˆçš„ç›¸ä¼¼æ ·æœ¬
     """
     patient_ids, sample_ki = get_similar_rank(pca_pre_data_select)
 
@@ -83,19 +83,30 @@ def personalized_modeling(test_id, pre_data_select, pca_pre_data_select):
     global_lock.release()
 
 
-def pca_reduction(train_x, test_x, similar_weight, n_comp):
-    if n_comp >= train_data_x.shape[1]:
-        n_comp = train_data_x.shape[1] - 1
+def trans_mean_value(test_data_x, top_k_mean):
+    test_data_row = test_data_x.shape[0]
+    new_test_data_x = pd.DataFrame(index=range(test_data_row), columns=test_data_x.columns)
 
+    distance_matrix = pd.DataFrame(euclidean_distances(test_data_x))
+
+    for i in range(test_data_row):
+        top_index = distance_matrix.iloc[i].nsmallest(top_k_mean).index
+        new_test_data_x.iloc[i] = test_data_x.iloc[top_index].mean(axis=0)
+
+    new_test_data_x.index = test_data_x.index
+    return new_test_data_x
+
+
+def pca_reduction(train_x, test_x, n_components):
     my_logger.warning(f"starting pca by train_data...")
-    # pca½µÎ¬
-    pca_model = PCA(n_components=n_comp, random_state=2022)
-    # ×ª»»ĞèÒª * ÏàËÆĞÔ¶ÈÁ¿
-    new_train_data_x = pca_model.fit_transform(train_x * similar_weight)
-    new_test_data_x = pca_model.transform(test_x * similar_weight)
-    # ×ª³Édf¸ñÊ½
-    pca_train_x = pd.DataFrame(data=new_train_data_x, index=train_data_x.index)
-    pca_test_x = pd.DataFrame(data=new_test_data_x, index=test_data_x.index)
+    # pcaé™ç»´
+    pca_model = PCA(n_components=n_components, random_state=2022)
+    # è½¬æ¢éœ€è¦ * ç›¸ä¼¼æ€§åº¦é‡
+    new_train_data_x = pca_model.fit_transform(train_x * init_similar_weight)
+    new_test_data_x = pca_model.transform(test_x * init_similar_weight)
+    # è½¬æˆdfæ ¼å¼
+    pca_train_x = pd.DataFrame(data=new_train_data_x, index=train_x.index)
+    pca_test_x = pd.DataFrame(data=new_test_data_x, index=test_x.index)
 
     my_logger.info(f"n_components: {pca_model.n_components}, svd_solver:{pca_model.svd_solver}.")
 
@@ -106,48 +117,54 @@ if __name__ == '__main__':
 
     my_logger = MyLog().logger
 
-    pool_nums = 30
+    pool_nums = 20
     test_select = 1000
     select_ratio = 0.1
     m_sample_weight = 0.01
 
-    xgb_boost_num = 50
     xgb_thread_num = 1
+    xgb_boost_num = 50
 
     is_transfer = int(sys.argv[1])
     n_components = int(sys.argv[2])
+    top_k_mean = int(sys.argv[3])
+
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
     params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
     xgb_model = get_xgb_model_pkl(is_transfer)
     init_similar_weight = get_init_similar_weight()
 
-    version = 1
+    version = 2
     # ================== save file name ====================
-    patient_ids_list_file_name = f"./result/S03_test_similar_patient_ids_XGB_{transfer_flag}v{version}.pkl"
-    all_result_file_name = f"./result/S03_pca_test_result_{transfer_flag}_v{version}.csv"
+    patient_ids_list_file_name = f"./result/S05_test_similar_patient_ids_XGB_{transfer_flag}v{version}.pkl"
+    all_result_file_name = f"./result/S05_kth_mean_pca_all_result_{transfer_flag}_{n_components}_v{version}.csv"
     # =====================================================
 
     my_logger.warning(
-        f"[params] - version:{version}, model_select:XGB, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, test_select:{test_select}")
+        f"[params] - version:{version}, top_k_mean:{top_k_mean}, model_select:XGB, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, test_select:{test_select}")
 
-    # »ñÈ¡Êı¾İ
+    # è·å–æ•°æ®
     train_data, test_data = get_train_test_data()
-    # ´¦Àítrain_data
+
     train_data.set_index(["ID"], inplace=True)
     train_data_y = train_data['Label']
     train_data_x = train_data.drop(['Label'], axis=1)
-    # ´¦Àítest_data
+
     test_data.set_index(["ID"], inplace=True)
     test_data = test_data.sample(n=test_select)
     test_data_y = test_data['Label']
     test_data_x = test_data.drop(['Label'], axis=1)
 
-    my_logger.warning(f"train_data:{train_data.shape}, test_data:{test_data.shape}")
+    # é€‰top k ä¸ªæ‚£è€…å¹¶è¿›è¡Œå‡å€¼åŒ–
+    mean_test_data_x = trans_mean_value(test_data_x, top_k_mean)
 
-    # PCA½µÎ¬
-    pca_train_data_x, pca_test_data_x = pca_reduction(train_data_x, test_data_x, init_similar_weight, n_components)
+    my_logger.warning(f"load_data: {train_data_x.shape}, {mean_test_data_x.shape}")
 
+    # PCAé™ç»´
+    pca_train_data_x, pca_test_data_x = train_data_x, mean_test_data_x
+
+    # æŠ½1000ä¸ªæ‚£è€…
     len_split = int(select_ratio * train_data.shape[0])
     test_id_list = pca_test_data_x.index.values
 
@@ -156,10 +173,11 @@ if __name__ == '__main__':
 
     test_similar_patient_ids = {}
 
-    global_lock = threading.Lock()
-    my_logger.warning("starting personalized modelling...")
+    global_lock = Lock()
+    my_logger.warning("starting ...")
+
     s_t = time.time()
-    # Æ¥ÅäÏàËÆÑù±¾£¨´ÓÑµÁ·¼¯£© XGB½¨Ä£ ¶àÏß³Ì
+    # åŒ¹é…ç›¸ä¼¼æ ·æœ¬ï¼ˆä»è®­ç»ƒé›†ï¼‰ XGBå»ºæ¨¡ å¤šçº¿ç¨‹
     with ThreadPoolExecutor(max_workers=pool_nums) as executor:
         thread_list = []
         for test_id in test_id_list:
@@ -176,18 +194,18 @@ if __name__ == '__main__':
     # with open(patient_ids_list_file_name, 'wb') as file:
     #     pickle.dump(test_similar_patient_ids, file)
 
-    # save test result
+    # save result csv
     y_test, y_pred = test_result['real'], test_result['prob']
     score = roc_auc_score(y_test, y_pred)
     my_logger.warning(f"personalized auc is: {score}")
 
     try:
-        # ±£´æµ½Í³Ò»µÄÎ»ÖÃ
-        cur_result = [[n_components, score]]
-        cur_result_df = pd.DataFrame(cur_result, columns=['n_components', 'auc'])
+        # ä¿å­˜åˆ°ç»Ÿä¸€çš„ä½ç½®
+        cur_result = [[top_k_mean, score]]
+        cur_result_df = pd.DataFrame(cur_result, columns=['top_k_to_mean', 'auc'])
         if os.path.exists(all_result_file_name):
             cur_result_df.to_csv(all_result_file_name, mode='a', index=False, header=False)
         else:
             cur_result_df.to_csv(all_result_file_name, index=False, header=True)
     except Exception as err:
-        raise err
+        print(err)

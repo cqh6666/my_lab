@@ -20,9 +20,8 @@ from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import xgboost as xgb
 
 import pandas as pd
-from sklearn.metrics import roc_auc_score
 
-from utils_api import get_train_test_data, covert_time_format
+from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row
 from my_logger import MyLog
 from xgb_utils_api import get_xgb_model_pkl, get_local_xgb_para, get_init_similar_weight
 
@@ -41,8 +40,10 @@ def get_similar_rank(pre_data_select):
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:len_split].values
 
+        # distance column
         sample_ki = similar_rank.iloc[:len_split, 0].values
         sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
+
     except Exception as err:
         raise err
 
@@ -69,77 +70,75 @@ def personalized_modeling(test_id, pre_data_select):
     pre_data_select - dataframe
     :return: 最终的相似样本
     """
-    start_time = time.time()
     patient_ids, sample_ki = get_similar_rank(pre_data_select)
 
-    fit_train_x = train_data_x.loc[patient_ids]
-    fit_train_y = train_data_y.loc[patient_ids]
+    try:
+        fit_train_x = train_data_x.loc[patient_ids]
+        fit_train_y = train_data_y.loc[patient_ids]
 
-    predict_prob = xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki)
+        predict_prob = xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki)
 
-    global_lock.acquire()
-    test_result.loc[test_id, 'prob'] = predict_prob
-    # test_similar_patient_ids[test_id] = patient_ids
-    global_lock.release()
-
-    end_time = time.time()
-    # my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
+        global_lock.acquire()
+        test_result.loc[test_id, 'prob'] = predict_prob
+        global_lock.release()
+    except Exception as err:
+        print(err)
 
 
 if __name__ == '__main__':
 
     my_logger = MyLog().logger
 
-    pre_hour = 24
-    root_dir = f"{pre_hour}h_old2"
-    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
-
     pool_nums = 30
-    test_select = 1000
     select_ratio = 0.1
     m_sample_weight = 0.01
 
-    xgb_thread_num = 1
-    xgb_boost_num = 50
-
     is_transfer = int(sys.argv[1])
+    # 分成5批，每一批2000，共1w个测试样本
+    start_idx = int(sys.argv[2])
+    end_idx = int(sys.argv[3])
+
+    xgb_thread_num = 1
+    xgb_boost_num = 100
+
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
     params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
     xgb_model = get_xgb_model_pkl(is_transfer)
     init_similar_weight = get_init_similar_weight()
 
-    version = 1
+    """
+    version=1 xgb_boost_num=50
+    version=2 xgb_boost_num=25
+    version=3 xgb_boost_num=100
+
+    """
+    version = 3
     # ================== save file name ====================
-    patient_ids_list_file_name = f"./result/S02_test_similar_patient_ids_XGB_{transfer_flag}v{version}.pkl"
-    test_result_file_name = f"./result/S02_test_result_XGB_{transfer_flag}_v{version}.csv"
+    test_result_file_name = f"./result/S02_xgb_test_tra{is_transfer}_v{version}.csv"
     # =====================================================
 
-    my_logger.warning(
-        f"[params] - version:{version}, model_select:XGB, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, test_select:{test_select}")
-
     # 获取数据
-    train_data, test_data = get_train_test_data()
+    train_data_x, train_data_y, test_data_x, test_data_y = get_train_test_x_y()
 
-    train_data.set_index(["ID"], inplace=True)
-    train_data_y = train_data['Label']
-    train_data_x = train_data.drop(['Label'], axis=1)
+    final_idx = test_data_x.shape[0]
+    end_idx = final_idx if end_idx > final_idx else end_idx  # 不得大过最大值
 
-    test_data = test_data.sample(n=test_select)
-    test_data.set_index(["ID"], inplace=True)
-    test_data_y = test_data['Label']
-    test_data_x = test_data.drop(['Label'], axis=1)
+    # 分批次进行个性化建模
+    test_data_x = test_data_x.iloc[start_idx:end_idx]
+    test_data_y = test_data_y.iloc[start_idx:end_idx]
 
-    my_logger.warning(f"load_data: {train_data.shape}, {test_data.shape}")
+    my_logger.warning("load data - train_data:{}, test_data:{}".format(train_data_x.shape, test_data_x.shape))
+    my_logger.warning(
+        f"[params] - version:{version}, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, "
+        f"test_idx:[{start_idx}, {end_idx}]")
 
-    # 抽1000个患者
-    len_split = int(select_ratio * train_data.shape[0])
+    # 10%匹配患者
+    len_split = int(select_ratio * train_data_x.shape[0])
     test_id_list = test_data_x.index.values
 
     test_result = pd.DataFrame(index=test_id_list, columns=['real', 'prob'])
     test_result['real'] = test_data_y
-
-    test_similar_patient_ids = {}
 
     global_lock = threading.Lock()
     my_logger.warning("starting ...")
@@ -157,12 +156,6 @@ if __name__ == '__main__':
     e_t = time.time()
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
-    # save test_similar_patient_ids
-    # with open(patient_ids_list_file_name, 'wb') as file:
-    #     pickle.dump(test_similar_patient_ids, file)
-
-    # save result csv
-    test_result.to_csv(test_result_file_name)
-    y_test, y_pred = test_result['real'], test_result['prob']
-    score = roc_auc_score(y_test, y_pred)
-    my_logger.warning(f"personalized auc is: {score}")
+    # save concat test_result csv
+    save_to_csv_by_row(test_result_file_name, test_result)
+    my_logger.info("save test result prob success!")

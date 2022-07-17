@@ -133,9 +133,6 @@ def sub_global_train(select_rate=0.1, is_transfer=1, local_iter=100):
     return auc
 
 
-
-
-
 if __name__ == '__main__':
     # lr_max_iter = int(sys.argv[1])
     pre_hour = 24

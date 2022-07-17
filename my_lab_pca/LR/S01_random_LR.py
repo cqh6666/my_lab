@@ -12,6 +12,7 @@
 """
 __author__ = 'cqh'
 
+import sys
 import time
 import warnings
 
@@ -63,27 +64,21 @@ def sub_global_train(select_rate=0.1, is_transfer=1, local_iter=100):
     return auc
 
 
-def range_sub_train():
+def range_sub_train(iter_idx, is_tra=1):
     range_list = np.arange(0.05, 1.01, 0.05)
-    iter_list = [25, 50, 100, 150, 200, 250, 300, 350, 400]
 
     tra_res_dict = {}
-    no_tra_res_dict = {}
-    for iter_idx in iter_list:
-        select_tra_res = []
-        select_no_tra_res = []
-        for select in range_list:
-            tra_auc = run(select, 1, iter_idx)
-            no_tra_auc = run(select, 0, iter_idx)
-            select_tra_res.append(tra_auc)
-            select_no_tra_res.append(no_tra_auc)
+    select_res = []
+    for select in range_list:
+        if is_tra == 1:
+            cur_auc = run(select, 1, iter_idx)
+        else:
+            cur_auc = run(select, 0, iter_idx)
+        select_res.append(cur_auc)
 
-        tra_res_dict[f'tra_{iter_idx}'] = select_tra_res
-        no_tra_res_dict[f'no_tra_{iter_idx}'] = select_no_tra_res
-
-        pd.DataFrame(tra_res_dict, index=range_list).to_csv(f"./result/tra_auc_comp_{iter_idx}.csv")
-        pd.DataFrame(no_tra_res_dict, index=range_list).to_csv(f"./result/no_tra_auc_comp_{iter_idx}.csv")
-        my_logger.info("save success!")
+    tra_res_dict[f'tra_{is_tra}_{iter_idx}'] = select_res
+    pd.DataFrame(tra_res_dict, index=range_list).to_csv(f"./result/S01_tra_{is_tra}_lr_auc_comp_{iter_idx}.csv")
+    my_logger.info("save success!")
 
 
 def run(select_rate, is_transfer, local_iter):
@@ -109,7 +104,7 @@ if __name__ == '__main__':
     local_iter = 100
 
     pool_nums = 20
-    run_round = 20
+    run_round = 10
 
     train_data, test_data = get_train_test_data()
     # 处理数据
@@ -124,5 +119,7 @@ if __name__ == '__main__':
 
     # transfer: select_rate, auc_25, auc_50, auc_100, auc_150, auc_200, auc_250 ...]
 
-    range_sub_train()
+    max_iter = int(sys.argv[1])
+    is_tra = int(sys.argv[2])
+    range_sub_train(max_iter, is_tra)
 

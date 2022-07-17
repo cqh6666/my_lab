@@ -5,3 +5,6 @@ joblib
 numpy
 psutil
 scipy
+matplotlib
+shap
+schedule

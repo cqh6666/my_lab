@@ -13,12 +13,17 @@
 __author__ = 'cqh'
 
 import pandas as pd
+import matplotlib.pyplot as plt
 
-# result = pd.read_csv(r"./S05_ev_r.csv")
+model = "LR"
+transfer_flag = "no_transfer"
+csv_file_name = f"./csv/S03_{model}_PCA.csv"
+# csv_file_name = f"./S01_{model}_{transfer_flag}.csv"
+png_file_name = f"S03_{model}_PCA_AUC_diff_components"
+png_save_path = "./png/" + png_file_name
 
-
-ax = result.plot(y=['ev_r', 'ev_r_sum'], title='ev_ratio')
+result = pd.read_csv(csv_file_name, index_col=0)
+ax = result.plot(y=result.columns, title=png_file_name)
 fig = ax.get_figure()
-png_file_name = f"./ev_r_sum_result.png"
-fig.savefig(png_file_name)
+fig.savefig(png_save_path)
 print("save auc result to png success!")

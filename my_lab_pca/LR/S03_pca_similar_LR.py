@@ -12,6 +12,7 @@
 """
 __author__ = 'cqh'
 
+import os
 import sys
 from threading import Lock
 import time
@@ -78,8 +79,6 @@ def personalized_modeling(test_id, pre_data_select_x, pca_pre_data_select_x):
     :param pca_pre_data_select:
     :return:
     """
-    start_time = time.time()
-
     patient_ids, sample_ki = get_similar_rank(pca_pre_data_select_x)
     fit_test_x, fit_train_x, fit_train_y = fit_train_test_data(patient_ids, pre_data_select_x, is_transfer)
     predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
@@ -89,8 +88,24 @@ def personalized_modeling(test_id, pre_data_select_x, pca_pre_data_select_x):
     # test_similar_patient_ids[test_id] = patient_ids
     global_lock.release()
 
-    end_time = time.time()
-    # my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
+
+def pca_reduction(train_x, test_x, similar_weight, n_comp):
+    if n_comp >= train_data_x.shape[1]:
+        n_comp = train_data_x.shape[1] - 1
+
+    my_logger.warning(f"starting pca by train_data...")
+    # pca降维
+    pca_model = PCA(n_components=n_comp, random_state=2022)
+    # 转换需要 * 相似性度量
+    new_train_data_x = pca_model.fit_transform(train_x * similar_weight)
+    new_test_data_x = pca_model.transform(test_x * similar_weight)
+    # 转成df格式
+    pca_train_x = pd.DataFrame(data=new_train_data_x, index=train_x.index)
+    pca_test_x = pd.DataFrame(data=new_test_data_x, index=test_x.index)
+
+    my_logger.info(f"n_components: {pca_model.n_components}, svd_solver:{pca_model.svd_solver}.")
+
+    return pca_train_x, pca_test_x
 
 
 if __name__ == '__main__':
@@ -104,8 +119,8 @@ if __name__ == '__main__':
 
     local_lr_iter = 100
 
-    n_components = int(sys.argv[2])
     is_transfer = int(sys.argv[1])
+    n_components = int(sys.argv[2])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     init_similar_weight = get_init_similar_weight()
     global_feature_weight = get_transfer_weight(is_transfer)
@@ -113,7 +128,7 @@ if __name__ == '__main__':
     version = 1
     # ================== save file name ====================
     patient_ids_list_file_name = f"./result/S03_test_similar_patient_ids_LR_{transfer_flag}_v{version}.pkl"
-    test_result_file_name = f"./result/S03_test_result_LR_{transfer_flag}_v{version}.csv"
+    all_result_file_name = f"./result/S03_pca_similar_LR_{transfer_flag}_{n_components}_v{version}.csv"
     # =====================================================
 
     my_logger.warning(
@@ -132,20 +147,9 @@ if __name__ == '__main__':
     test_data_x = test_data.drop(['Label'], axis=1)
 
     my_logger.warning(f"train_data: {train_data.shape}, test_data: {test_data.shape}")
-    my_logger.warning(f"starting pca by train_data...")
 
-    # pca降维
-    pca_model = PCA(n_components=n_components, random_state=2022)
-    new_train_data_x = pca_model.fit_transform(train_data_x * init_similar_weight)
-    new_test_data_x = pca_model.transform(test_data_x * init_similar_weight)
-
-    # 转成df格式
-    pca_train_data_x = pd.DataFrame(data=new_train_data_x, index=train_data_x.index)
-    pca_test_data_x = pd.DataFrame(data=new_test_data_x, index=test_data_x.index)
-
-    del new_train_data_x, new_test_data_x
-
-    my_logger.info(f"n_components: {pca_model.n_components}, svd_solver: {pca_model.svd_solver}.")
+    # PCA降维
+    pca_train_data_x, pca_test_data_x = pca_reduction(train_data_x, test_data_x, init_similar_weight, n_components)
 
     len_split = int(select_ratio * train_data.shape[0])
     test_id_list = pca_test_data_x.index.values
@@ -176,7 +180,18 @@ if __name__ == '__main__':
     #     pickle.dump(test_similar_patient_ids, file)
 
     # save result csv
-    test_result.to_csv(test_result_file_name)
+    # test_result.to_csv(test_result_file_name)
     y_test, y_pred = test_result['real'], test_result['prob']
     score = roc_auc_score(y_test, y_pred)
     my_logger.info(f"personalized auc is: {score}")
+
+    try:
+        # 保存到统一的位置
+        cur_result = [[n_components, score]]
+        cur_result_df = pd.DataFrame(cur_result, columns=['n_components', 'auc'])
+        if os.path.exists(all_result_file_name):
+            cur_result_df.to_csv(all_result_file_name, mode='a', index=False, header=False)
+        else:
+            cur_result_df.to_csv(all_result_file_name, index=False, header=True)
+    except Exception as err:
+        raise err

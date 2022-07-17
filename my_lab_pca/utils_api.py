@@ -15,7 +15,6 @@ __author__ = 'cqh'
 import pandas as pd
 import os
 from sklearn.model_selection import train_test_split
-import pickle
 
 pre_hour = 24
 root_dir = f"{pre_hour}h_old2"
@@ -34,14 +33,40 @@ def get_train_test_data(test_size=0.15):
     all_data_path = os.path.join(DATA_SOURCE_PATH, all_data_file)
     all_samples = pd.read_feather(all_data_path)
     train_data, test_data = train_test_split(all_samples, test_size=test_size, random_state=2022)
+    train_data.reset_index(drop=True, inplace=True)
+    test_data.reset_index(drop=True, inplace=True)
+
     return train_data, test_data
 
 
-def get_train_x_y_data():
-    train_data, _ = get_train_test_data()
-    train_data_x = train_data.drop(['ID', 'Label'], axis=1)
+def get_train_test_x_y():
+    """
+    得到训练集和测试集，并重置ID，节省空间
+    :return:
+    """
+    train_data, test_data = get_train_test_data()
+
+    train_data_x = train_data.drop(['Label', 'ID'], axis=1)
     train_data_y = train_data['Label']
-    return train_data_x, train_data_y
+
+    test_data_x = test_data.drop(['Label', 'ID'], axis=1)
+    test_data_y = test_data['Label']
+
+    return train_data_x, train_data_y, test_data_x, test_data_y
+
+
+def get_target_test_id():
+    """
+    得到50个正样本，50个负样本来进行分析
+    :return:
+    """
+    _, test_data = get_train_test_data()
+    test_data_y = test_data['Label']
+    test_data_ids_1 = test_data_y[test_data_y == 1].index[:50].values
+    test_data_ids_0 = test_data_y[test_data_y == 0].index[:50].values
+
+    return test_data_ids_1, test_data_ids_0
+
 
 
 def covert_time_format(seconds):
@@ -65,5 +90,25 @@ def covert_time_format(seconds):
     return f"{round(seconds, 2)} s"
 
 
+def save_to_csv_by_row(csv_file, new_df):
+    """
+    以行的方式插入csv文件之中，若文件存在则在尾行插入，否则新建一个新的csv；
+    :param csv_file: 默认保存的文件
+    :param new_df: dataFrame格式 需要包含header
+    :return:
+    """
+    # 保存存入的是dataFrame格式
+    assert isinstance(new_df, pd.DataFrame)
+    if os.path.exists(csv_file):
+        new_df.to_csv(csv_file, mode='a', index=True, header=False)
+    else:
+        new_df.to_csv(csv_file, index=True, header=True)
+
+
 if __name__ == '__main__':
-    print(covert_time_format(12323))
+    test_1, test_0 = get_target_test_id()
+    print("test_1", test_1)
+    print("test_0", test_0)
+
+
+

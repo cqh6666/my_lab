@@ -1,8 +1,8 @@
 # -*- coding: gbk -*-
 """
 -------------------------------------------------
-   File Name:     pca_similar
-   Description:   没做PCA处理，使用初始相似性度量匹配相似样本，进行计算AUC
+   File Name:     lda_similar
+   Description:   LDA降维处理
    Author:        cqh
    date:          2022/7/5 10:07
 -------------------------------------------------
@@ -12,7 +12,6 @@
 """
 __author__ = 'cqh'
 
-import os
 import sys
 import threading
 import time
@@ -21,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import xgboost as xgb
 
 import pandas as pd
-from sklearn.decomposition import PCA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import roc_auc_score
 
 from utils_api import get_train_test_data, covert_time_format
@@ -72,35 +71,36 @@ def personalized_modeling(test_id, pre_data_select, pca_pre_data_select):
     pre_data_select - dataframe
     :return: 最终的相似样本
     """
+    start_time = time.time()
     patient_ids, sample_ki = get_similar_rank(pca_pre_data_select)
 
     fit_train_x = train_data_x.loc[patient_ids]
     fit_train_y = train_data_y.loc[patient_ids]
     predict_prob = xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki)
+
     global_lock.acquire()
     test_result.loc[test_id, 'prob'] = predict_prob
     # test_similar_patient_ids[test_id] = patient_ids
     global_lock.release()
 
+    end_time = time.time()
+    # my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
 
-def pca_reduction(train_x, test_x, similar_weight, n_comp):
-    if n_comp >= train_data_x.shape[1]:
-        n_comp = train_data_x.shape[1] - 1
 
+def lda_feature_reduction(n_components):
     my_logger.warning(f"starting pca by train_data...")
-    # pca降维
-    pca_model = PCA(n_components=n_comp, random_state=2022)
+    # LDA降维
+    lda_model = LDA(n_components=n_components)
     # 转换需要 * 相似性度量
-    new_train_data_x = pca_model.fit_transform(train_x * similar_weight)
-    new_test_data_x = pca_model.transform(test_x * similar_weight)
+    new_train_data_x = lda_model.fit_transform(train_data_x * init_similar_weight, train_data_y)
+    new_test_data_x = lda_model.transform(test_data_x * init_similar_weight)
     # 转成df格式
-    pca_train_x = pd.DataFrame(data=new_train_data_x, index=train_data_x.index)
-    pca_test_x = pd.DataFrame(data=new_test_data_x, index=test_data_x.index)
+    lda_train_data_x = pd.DataFrame(data=new_train_data_x, index=train_data_x.index)
+    lda_test_data_x = pd.DataFrame(data=new_test_data_x, index=test_data_x.index)
 
-    my_logger.info(f"n_components: {pca_model.n_components}, svd_solver:{pca_model.svd_solver}.")
+    my_logger.info(f"n_components: {lda_model.n_features_in_}")
 
-    return pca_train_x, pca_test_x
-
+    return lda_train_data_x, lda_test_data_x
 
 if __name__ == '__main__':
 
@@ -114,8 +114,9 @@ if __name__ == '__main__':
     xgb_boost_num = 50
     xgb_thread_num = 1
 
-    is_transfer = int(sys.argv[1])
     n_components = int(sys.argv[2])
+
+    is_transfer = int(sys.argv[1])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
     params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
@@ -125,7 +126,7 @@ if __name__ == '__main__':
     version = 1
     # ================== save file name ====================
     patient_ids_list_file_name = f"./result/S03_test_similar_patient_ids_XGB_{transfer_flag}v{version}.pkl"
-    all_result_file_name = f"./result/S03_pca_test_result_{transfer_flag}_v{version}.csv"
+    test_result_file_name = f"./result/S03_test_result_XGB_{transfer_flag}_v{version}.csv"
     # =====================================================
 
     my_logger.warning(
@@ -145,11 +146,11 @@ if __name__ == '__main__':
 
     my_logger.warning(f"train_data:{train_data.shape}, test_data:{test_data.shape}")
 
-    # PCA降维
-    pca_train_data_x, pca_test_data_x = pca_reduction(train_data_x, test_data_x, init_similar_weight, n_components)
+    # feature reduction
+    lda_train_data_x, lda_test_data_x = lda_feature_reduction(n_components)
 
     len_split = int(select_ratio * train_data.shape[0])
-    test_id_list = pca_test_data_x.index.values
+    test_id_list = lda_test_data_x.index.values
 
     test_result = pd.DataFrame(index=test_id_list, columns=['real', 'prob'])
     test_result['real'] = test_data_y
@@ -164,7 +165,7 @@ if __name__ == '__main__':
         thread_list = []
         for test_id in test_id_list:
             pre_data_select = test_data_x.loc[[test_id]]
-            pca_pre_data_select = pca_test_data_x.loc[[test_id]]
+            pca_pre_data_select = lda_test_data_x.loc[[test_id]]
             thread = executor.submit(personalized_modeling, test_id, pre_data_select, pca_pre_data_select)
             thread_list.append(thread)
         wait(thread_list, return_when=ALL_COMPLETED)
@@ -177,17 +178,7 @@ if __name__ == '__main__':
     #     pickle.dump(test_similar_patient_ids, file)
 
     # save test result
+    test_result.to_csv(test_result_file_name)
     y_test, y_pred = test_result['real'], test_result['prob']
     score = roc_auc_score(y_test, y_pred)
     my_logger.warning(f"personalized auc is: {score}")
-
-    try:
-        # 保存到统一的位置
-        cur_result = [[n_components, score]]
-        cur_result_df = pd.DataFrame(cur_result, columns=['n_components', 'auc'])
-        if os.path.exists(all_result_file_name):
-            cur_result_df.to_csv(all_result_file_name, mode='a', index=False, header=False)
-        else:
-            cur_result_df.to_csv(all_result_file_name, index=False, header=True)
-    except Exception as err:
-        raise err
