@@ -2,7 +2,7 @@
 """
 -------------------------------------------------
    File Name:     pca_similar
-   Description:   没做PCA处理，使用初始相似性度量匹配相似样本，进行计算AUC
+   Description:   平均处理
    Author:        cqh
    date:          2022/7/5 10:07
 -------------------------------------------------
@@ -31,12 +31,20 @@ warnings.filterwarnings('ignore')
 def get_similar_rank(pre_data_select):
     """
     选择前10%的样本，并且根据相似得到样本权重
-    :param pre_data_select:
+    :param pre_data_select: 目标样本
     :return:
     """
     try:
+        # 得先进行均值化
         similar_rank = pd.DataFrame(index=train_data_x.index)
         similar_rank['distance'] = abs((train_data_x - pre_data_select.values) * init_similar_weight).sum(axis=1)
+        similar_rank.sort_values('distance', inplace=True)
+        patient_ids = similar_rank.index[:top_k_mean].values
+
+        mean_pre_data_select = pd.DataFrame(data=[train_data_x.loc[patient_ids].mean(axis=0)]).values
+        # 均值化后再计算相似性患者
+        similar_rank = pd.DataFrame(index=train_data_x.index)
+        similar_rank['distance'] = abs((train_data_x - mean_pre_data_select) * init_similar_weight).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:len_split].values
 
@@ -83,24 +91,25 @@ def personalized_modeling(test_id, pre_data_select):
         global_lock.release()
     except Exception as err:
         print(err)
+        sys.exit(1)
 
 
 if __name__ == '__main__':
 
     my_logger = MyLog().logger
 
-    pool_nums = 30
+    pool_nums = 25
     m_sample_weight = 0.01
+    select = 10
+    select_ratio = select * 0.01
+
+    xgb_boost_num = 50
+    xgb_thread_num = 1
 
     is_transfer = int(sys.argv[1])
-    xgb_boost_num = int(sys.argv[2])
-    select = int(sys.argv[3])
-    # 分成5批，每一批2000，共1w个测试样本
-    start_idx = int(sys.argv[4])
-    end_idx = int(sys.argv[5])
-
-    xgb_thread_num = 1
-    select_ratio = select * 0.01
+    top_k_mean = int(sys.argv[2])
+    start_idx = int(sys.argv[3])
+    end_idx = int(sys.argv[4])
 
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
@@ -112,11 +121,10 @@ if __name__ == '__main__':
     version=1 xgb_boost_num=50
     version=2 xgb_boost_num=25
     version=3 xgb_boost_num=100
-
     """
-    version = 3
+    version = 1
     # ================== save file name ====================
-    test_result_file_name = f"./result/S02_xgb_test_tra{is_transfer}_boost{xgb_boost_num}_select{select}_v{version}.csv"
+    test_result_file_name = f"./result/S04_xgb_test_tra{is_transfer}_mean{top_k_mean}_v{version}.csv"
     # =====================================================
 
     # 获取数据
@@ -131,7 +139,7 @@ if __name__ == '__main__':
 
     my_logger.warning("load data - train_data:{}, test_data:{}".format(train_data_x.shape, test_data_x.shape))
     my_logger.warning(
-        f"[params] - version:{version}, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, "
+        f"[params] - version:{version}, top_k_mean:{top_k_mean}, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, "
         f"test_idx:[{start_idx}, {end_idx}]")
 
     # 10%匹配患者
@@ -158,5 +166,7 @@ if __name__ == '__main__':
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
     # save concat test_result csv
-    save_to_csv_by_row(test_result_file_name, test_result)
-    my_logger.info("save test result prob success!")
+    if save_to_csv_by_row(test_result_file_name, test_result):
+        my_logger.info("save test result prob success!")
+    else:
+        my_logger.info("save error...")

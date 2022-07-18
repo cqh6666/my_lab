@@ -99,10 +99,17 @@ def save_to_csv_by_row(csv_file, new_df):
     """
     # 保存存入的是dataFrame格式
     assert isinstance(new_df, pd.DataFrame)
+    # 不能存在NaN
+    if new_df.isna().sum().sum() > 0:
+        print("exist NaN...")
+        return False
+
     if os.path.exists(csv_file):
         new_df.to_csv(csv_file, mode='a', index=True, header=False)
     else:
         new_df.to_csv(csv_file, index=True, header=True)
+
+    return True
 
 
 if __name__ == '__main__':

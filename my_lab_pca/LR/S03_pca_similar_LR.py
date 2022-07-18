@@ -22,9 +22,8 @@ import pandas as pd
 
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
 
-from utils_api import get_train_test_data, covert_time_format
+from utils_api import covert_time_format, get_train_test_x_y, save_to_csv_by_row
 from lr_utils_api import get_transfer_weight, get_init_similar_weight
 from my_logger import MyLog
 
@@ -58,18 +57,16 @@ def lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
     return predict_prob
 
 
-def fit_train_test_data(patient_ids, pre_data_select_x, is_tra):
-    fit_train_y = train_data_y.loc[patient_ids]
+def fit_train_test_data(patient_ids, pre_data_select_x):
     select_train_x = train_data_x.loc[patient_ids]
-    if is_tra == 1:
+    if is_transfer == 1:
         transfer_weight = global_feature_weight
         fit_train_x = select_train_x * transfer_weight
         fit_test_x = pre_data_select_x * transfer_weight
     else:
         fit_train_x = select_train_x
         fit_test_x = pre_data_select_x
-    return fit_test_x, fit_train_x, fit_train_y
-
+    return fit_test_x, fit_train_x
 
 def personalized_modeling(test_id, pre_data_select_x, pca_pre_data_select_x):
     """
@@ -79,14 +76,17 @@ def personalized_modeling(test_id, pre_data_select_x, pca_pre_data_select_x):
     :param pca_pre_data_select:
     :return:
     """
-    patient_ids, sample_ki = get_similar_rank(pca_pre_data_select_x)
-    fit_test_x, fit_train_x, fit_train_y = fit_train_test_data(patient_ids, pre_data_select_x, is_transfer)
-    predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
-
-    global_lock.acquire()
-    test_result.loc[test_id, 'prob'] = predict_prob
-    # test_similar_patient_ids[test_id] = patient_ids
-    global_lock.release()
+    try:
+        patient_ids, sample_ki = get_similar_rank(pca_pre_data_select_x)
+        fit_train_y = train_data_y.loc[patient_ids]
+        fit_test_x, fit_train_x = fit_train_test_data(patient_ids, pre_data_select_x)
+        predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
+        global_lock.acquire()
+        test_result.loc[test_id, 'prob'] = predict_prob
+        global_lock.release()
+    except Exception as err:
+        print(err)
+        sys.exit(1)
 
 
 def pca_reduction(train_x, test_x, similar_weight, n_comp):
@@ -113,56 +113,54 @@ if __name__ == '__main__':
     my_logger = MyLog().logger
 
     pool_nums = 30
-    test_select = 1000
-    select_ratio = 0.1
     m_sample_weight = 0.01
 
     local_lr_iter = 100
+    select = 10
 
-    is_transfer = int(sys.argv[1])
-    n_components = int(sys.argv[2])
+    is_transfer = int(sys.argv[1])  # 0 1
+    n_components = int(sys.argv[2])  # 500 1000 2000 3000 3000 4000
+    start_idx = int(sys.argv[3])
+    end_idx = int(sys.argv[4])
+
+    select_ratio = select * 0.01
+
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     init_similar_weight = get_init_similar_weight()
     global_feature_weight = get_transfer_weight(is_transfer)
 
     version = 1
     # ================== save file name ====================
-    patient_ids_list_file_name = f"./result/S03_test_similar_patient_ids_LR_{transfer_flag}_v{version}.pkl"
-    all_result_file_name = f"./result/S03_pca_similar_LR_{transfer_flag}_{n_components}_v{version}.csv"
+    test_result_file_name = f"./result/S03_pca_lr_test_tra{is_transfer}_comp{n_components}_v{version}.csv"
     # =====================================================
 
-    my_logger.warning(
-        f"[params] - version:{version}, model_select:LR, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, test_select:{test_select}")
-
     # 获取数据
-    train_data, test_data = get_train_test_data()
-    # 处理train_data
-    train_data.set_index(["ID"], inplace=True)
-    train_data_y = train_data['Label']
-    train_data_x = train_data.drop(['Label'], axis=1)
-    # 处理test_data
-    test_data.set_index(["ID"], inplace=True)
-    test_data = test_data.sample(n=test_select)
-    test_data_y = test_data['Label']
-    test_data_x = test_data.drop(['Label'], axis=1)
+    train_data_x, train_data_y, test_data_x, test_data_y = get_train_test_x_y()
 
-    my_logger.warning(f"train_data: {train_data.shape}, test_data: {test_data.shape}")
+    final_idx = test_data_x.shape[0]
+    end_idx = final_idx if end_idx > final_idx else end_idx  # 不得大过最大值
+
+    # 分批次进行个性化建模
+    test_data_x = test_data_x.iloc[start_idx:end_idx]
+    test_data_y = test_data_y.iloc[start_idx:end_idx]
 
     # PCA降维
     pca_train_data_x, pca_test_data_x = pca_reduction(train_data_x, test_data_x, init_similar_weight, n_components)
 
-    len_split = int(select_ratio * train_data.shape[0])
+    my_logger.warning("load data - train_data:{}, test_data:{}".format(train_data_x.shape, test_data_x.shape))
+    my_logger.warning(
+        f"[params] - model_select:LR, pool_nums:{pool_nums}, is_transfer:{is_transfer}, max_iter:{local_lr_iter}, select:{select}, test_idx:[{start_idx}, {end_idx}]")
+
+    len_split = int(select_ratio * train_data_x.shape[0])
     test_id_list = pca_test_data_x.index.values
 
     test_result = pd.DataFrame(index=test_id_list, columns=['real', 'prob'])
     test_result['real'] = test_data_y
 
-    test_similar_patient_ids = {}
-
     global_lock = Lock()
     my_logger.warning("starting personalized modelling...")
     s_t = time.time()
-    # 匹配相似样本（从训练集） 个性化建模 多线程
+    # 匹配相似样本（从训练集） XGB建模 多线程
     with ThreadPoolExecutor(max_workers=pool_nums) as executor:
         thread_list = []
         for test_id in test_id_list:
@@ -175,23 +173,6 @@ if __name__ == '__main__':
     e_t = time.time()
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
-    # save test_similar_patient_ids
-    # with open(patient_ids_list_file_name, 'wb') as file:
-    #     pickle.dump(test_similar_patient_ids, file)
-
-    # save result csv
-    # test_result.to_csv(test_result_file_name)
-    y_test, y_pred = test_result['real'], test_result['prob']
-    score = roc_auc_score(y_test, y_pred)
-    my_logger.info(f"personalized auc is: {score}")
-
-    try:
-        # 保存到统一的位置
-        cur_result = [[n_components, score]]
-        cur_result_df = pd.DataFrame(cur_result, columns=['n_components', 'auc'])
-        if os.path.exists(all_result_file_name):
-            cur_result_df.to_csv(all_result_file_name, mode='a', index=False, header=False)
-        else:
-            cur_result_df.to_csv(all_result_file_name, index=False, header=True)
-    except Exception as err:
-        raise err
+    # save concat test_result csv
+    save_to_csv_by_row(test_result_file_name, test_result)
+    my_logger.info("save test result prob success!")

@@ -20,9 +20,8 @@ from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
 
-from utils_api import get_train_test_data, covert_time_format
+from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row
 from lr_utils_api import get_init_similar_weight, get_transfer_weight
 from my_logger import MyLog
 
@@ -37,7 +36,7 @@ def get_similar_rank(pre_data_select):
     """
     try:
         similar_rank = pd.DataFrame(index=train_data_x.index)
-        similar_rank['distance'] = cal_all_distance_by_pre_data_select(pre_data_select)
+        similar_rank['distance'] = abs((train_data_x - pre_data_select.values) * init_similar_weight).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:len_split].values
 
@@ -47,11 +46,6 @@ def get_similar_rank(pre_data_select):
         raise err
 
     return patient_ids, sample_ki
-
-
-def cal_all_distance_by_pre_data_select(pre_data_select):
-    all_sub_cost = abs((train_data_x - pre_data_select.values) * init_similar_weight).sum(axis=1)
-    return all_sub_cost
 
 
 def lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
@@ -68,93 +62,80 @@ def personalized_modeling(test_id, pre_data_select_x):
     pre_data_select - dataframe
     :return: 最终的相似样本
     """
-    start_time = time.time()
-
-    patient_ids, sample_ki = get_similar_rank(pre_data_select)
-    fit_test_x, fit_train_x, fit_train_y = fit_train_test_data(patient_ids, pre_data_select_x, is_transfer)
-    predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
-
-    global_lock.acquire()
-    test_result.loc[test_id, 'prob'] = predict_prob
-    # test_similar_patient_ids[test_id] = patient_ids
-    global_lock.release()
-
-    end_time = time.time()
-    # my_logger.info(f"patient id:{test_id} | cost_time:{covert_time_format(end_time - start_time)}...")
+    try:
+        patient_ids, sample_ki = get_similar_rank(pre_data_select)
+        fit_train_y = train_data_y.loc[patient_ids]
+        fit_test_x, fit_train_x = fit_train_test_data(patient_ids, pre_data_select_x)
+        predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
+        global_lock.acquire()
+        test_result.loc[test_id, 'prob'] = predict_prob
+        global_lock.release()
+    except Exception as err:
+        print(err)
+        sys.exit(1)
 
 
-def fit_train_test_data(patient_ids, pre_data_select_x, is_tra):
-    fit_train_y = train_data_y.loc[patient_ids]
+def fit_train_test_data(patient_ids, pre_data_select_x):
     select_train_x = train_data_x.loc[patient_ids]
-    if is_tra == 1:
+    if is_transfer == 1:
         transfer_weight = global_feature_weight
         fit_train_x = select_train_x * transfer_weight
         fit_test_x = pre_data_select_x * transfer_weight
     else:
         fit_train_x = select_train_x
         fit_test_x = pre_data_select_x
-    return fit_test_x, fit_train_x, fit_train_y
+    return fit_test_x, fit_train_x
 
 
 if __name__ == '__main__':
 
     my_logger = MyLog().logger
 
-    pre_hour = 24
-    root_dir = f"{pre_hour}h_old2"
-    MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{pre_hour}h/global_model/'
-
     pool_nums = 30
-    test_select = 0.1
-    select_ratio = 0.1
     m_sample_weight = 0.01
 
-    local_lr_iter = 100
+    is_transfer = int(sys.argv[1])  # 0 1
+    local_lr_iter = int(sys.argv[2])  # 50 100 200
+    select = int(sys.argv[3])  # 5 10 20
+    start_idx = int(sys.argv[4])
+    end_idx = int(sys.argv[5])
 
-    is_transfer = int(sys.argv[1])
+    select_ratio = select * 0.01
+
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     init_similar_weight = get_init_similar_weight()
     global_feature_weight = get_transfer_weight(is_transfer)
 
     version = 1
     # ================== save file name ====================
-    patient_ids_list_file_name = f"./result/S02_test_similar_patient_ids_LR_{transfer_flag}_v{version}.pkl"
-    test_result_file_name = f"./result/S02_test_result_LR_{transfer_flag}_v{version}.csv"
+    test_result_file_name = f"./result/S02_lr_test_tra{is_transfer}_iter{local_lr_iter}_select{select}_v{version}.csv"
     # =====================================================
 
-    my_logger.warning(
-        f"[params] - model_select:LR, trasfer_flag:{transfer_flag}, pool_nums:{pool_nums}, test_select:{test_select}")
-
     # 获取数据
-    train_data, test_data = get_train_test_data()
-    # 处理数据
-    train_data.set_index(["ID"], inplace=True)
+    train_data_x, train_data_y, test_data_x, test_data_y = get_train_test_x_y()
 
-    test_data = test_data.sample(frac=test_select)
-    test_data.set_index(["ID"], inplace=True)
+    final_idx = test_data_x.shape[0]
+    end_idx = final_idx if end_idx > final_idx else end_idx  # 不得大过最大值
 
-    my_logger.warning(f"load_data: {train_data.shape}, {test_data.shape}")
+    # 分批次进行个性化建模
+    test_data_x = test_data_x.iloc[start_idx:end_idx]
+    test_data_y = test_data_y.iloc[start_idx:end_idx]
 
-    # 处理train_data
-    train_data_y = train_data['Label']
-    train_data_x = train_data.drop(['Label'], axis=1)
-    # 处理test_data
-    test_data_y = test_data['Label']
-    test_data_x = test_data.drop(['Label'], axis=1)
+    my_logger.warning("load data - train_data:{}, test_data:{}".format(train_data_x.shape, test_data_x.shape))
+    my_logger.warning(
+        f"[params] - model_select:LR, pool_nums:{pool_nums}, is_transfer:{is_transfer}, max_iter:{local_lr_iter}, select:{select}, test_idx:[{start_idx}, {end_idx}]")
 
-    # 抽1000个患者
-    len_split = int(select_ratio * train_data.shape[0])
+    len_split = int(select_ratio * train_data_x.shape[0])
     test_id_list = test_data_x.index.values
 
     test_result = pd.DataFrame(index=test_id_list, columns=['real', 'prob'])
     test_result['real'] = test_data_y
 
-    test_similar_patient_ids = {}
-
     global_lock = Lock()
     my_logger.warning("starting ...")
+
     s_t = time.time()
-    # 匹配相似样本（从训练集） XGB建模 多线程
+    # 匹配相似样本（从训练集） 建模 多线程
     with ThreadPoolExecutor(max_workers=pool_nums) as executor:
         thread_list = []
         for test_id in test_id_list:
@@ -166,12 +147,5 @@ if __name__ == '__main__':
     e_t = time.time()
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
-    # save test_similar_patient_ids
-    # with open(patient_ids_list_file_name, 'wb') as file:
-    #     pickle.dump(test_similar_patient_ids, file)
-
-    # save result csv
-    test_result.to_csv(test_result_file_name)
-    y_test, y_pred = test_result['real'], test_result['prob']
-    score = roc_auc_score(y_test, y_pred)
-    my_logger.info(f"personalized auc is: {score}")
+    save_to_csv_by_row(test_result_file_name, test_result)
+    my_logger.info("save test result prob success!")
