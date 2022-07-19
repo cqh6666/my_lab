@@ -186,5 +186,7 @@ if __name__ == '__main__':
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
     # save concat test_result csv
-    save_to_csv_by_row(test_result_file_name, test_result)
-    my_logger.info("save test result prob success!")
+    if save_to_csv_by_row(test_result_file_name, test_result):
+        my_logger.info("save test result prob success!")
+    else:
+        my_logger.info("save error...")

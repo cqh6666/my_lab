@@ -106,7 +106,7 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
     global_feature_weight = get_transfer_weight(is_transfer)
 
-    version = 1
+    version = 2
     # ================== save file name ====================
     test_result_file_name = f"./result/S02_lr_test_tra{is_transfer}_iter{local_lr_iter}_select{select}_v{version}.csv"
     # =====================================================
@@ -147,5 +147,9 @@ if __name__ == '__main__':
     e_t = time.time()
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
-    save_to_csv_by_row(test_result_file_name, test_result)
-    my_logger.info("save test result prob success!")
+    # save concat test_result csv
+    if save_to_csv_by_row(test_result_file_name, test_result):
+        my_logger.info("save test result prob success!")
+    else:
+        my_logger.info("save error...")
+

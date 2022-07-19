@@ -49,19 +49,17 @@ def defFunc2():
 
 if __name__ == '__main__':
     # Calling default function
-    # defFunc()
-    # pool_nums = 10
-    # # 匹配相似样本（从训练集） XGB建模 多线程
-    # with ThreadPoolExecutor(max_workers=pool_nums) as executor:
-    #     thread_list = []
-    #     for i in range(5):
-    #         defFunc()
-    #     wait(thread_list, return_when=ALL_COMPLETED)
-    # # Print confirmation message
-    # print("We have successfully inspected memory usage from the default function!")
-    # a = defFunc()
+    defFunc()
+    pool_nums = 10
+    # 匹配相似样本（从训练集） XGB建模 多线程
+    with ThreadPoolExecutor(max_workers=pool_nums) as executor:
+        thread_list = []
+        for i in range(5):
+            defFunc()
+        wait(thread_list, return_when=ALL_COMPLETED)
+    # Print confirmation message
+    print("We have successfully inspected memory usage from the default function!")
+    a = defFunc()
 
-    range_list = np.around(np.arange(0.05, 1.01, 0.05), 2)
-    print(range_list)
 
 

@@ -19,6 +19,7 @@ import sys
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import train_test_split
 
 from my_logger import MyLog
 import time
@@ -42,7 +43,7 @@ def get_train_test_data():
     return train_x, train_y, test_x, test_y
 
 
-def save_weight_importance_to_csv(weight_important, max_iter):
+def save_weight_importance_to_csv(weight_important):
     # 不标准化 初始特征重要性
     weight_importance_df = pd.DataFrame({"feature_weight": weight_important})
     weight_importance_df.to_csv(transfer_weight_file, index=False)
@@ -133,6 +134,38 @@ def sub_global_train(select_rate=0.1, is_transfer=1, local_iter=100):
     return auc
 
 
+def get_train_test_data2(test_size=0.15):
+    """
+    得到完整的数据 train_data, test_data
+    :param test_size:
+    :return:
+    """
+    all_data_file = f"all_{pre_hour}_df_rm1_norm1.feather"
+    all_data_path = os.path.join(DATA_SOURCE_PATH, all_data_file)
+    all_samples = pd.read_feather(all_data_path)
+    train_data, test_data = train_test_split(all_samples, test_size=test_size, random_state=2022)
+    train_data.reset_index(drop=True, inplace=True)
+    test_data.reset_index(drop=True, inplace=True)
+
+    return train_data, test_data
+
+
+def get_train_test_x_y():
+    """
+    得到训练集和测试集，并重置ID，节省空间
+    :return:
+    """
+    train_data, test_data = get_train_test_data2()
+
+    train_data_x = train_data.drop(['Label', 'ID'], axis=1)
+    train_data_y = train_data['Label']
+
+    test_data_x = test_data.drop(['Label', 'ID'], axis=1)
+    test_data_y = test_data['Label']
+
+    return train_data_x, train_data_y, test_data_x, test_data_y
+
+
 if __name__ == '__main__':
     # lr_max_iter = int(sys.argv[1])
     pre_hour = 24
@@ -155,7 +188,6 @@ if __name__ == '__main__':
 
     global_feature_weight = pd.read_csv(transfer_weight_file).squeeze().tolist()
 
-    range_sub_train()
     # start_time = time.time()
     # pool = Pool(processes=pool_nums)
     # for iter_idx in range(100, 3000, 100):
