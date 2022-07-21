@@ -129,7 +129,7 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
     global_feature_weight = get_transfer_weight(is_transfer)
 
-    version = 1
+    version = 2
     # ================== save file name ====================
     test_result_file_name = f"./result/S03_pca_lr_test_tra{is_transfer}_comp{n_components}_v{version}.csv"
     # =====================================================

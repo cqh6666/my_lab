@@ -15,11 +15,10 @@ __author__ = 'cqh'
 import pandas as pd
 import matplotlib.pyplot as plt
 
-model = "LR"
+model = "XGB"
 transfer_flag = "no_transfer"
-csv_file_name = f"./csv/S03_{model}_PCA.csv"
-# csv_file_name = f"./S01_{model}_{transfer_flag}.csv"
-png_file_name = f"S03_{model}_PCA_AUC_diff_components"
+csv_file_name = f"./csv/S04_{model}.csv"
+png_file_name = f"S04_{model}_res_v2.png"
 png_save_path = "./png/" + png_file_name
 
 result = pd.read_csv(csv_file_name, index_col=0)

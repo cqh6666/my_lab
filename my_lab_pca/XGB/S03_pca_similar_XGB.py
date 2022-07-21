@@ -104,7 +104,7 @@ def pca_reduction(train_x, test_x, similar_weight, n_comp):
     new_test_data_x = pca_model.transform(test_x * similar_weight)
     # 转成df格式
     pca_train_x = pd.DataFrame(data=new_train_data_x, index=train_x.index)
-    pca_test_x = pd.DataFrame(data=new_test_data_x, index=train_x.index)
+    pca_test_x = pd.DataFrame(data=new_test_data_x, index=test_x.index)
 
     my_logger.info(f"n_components: {pca_model.n_components}, svd_solver:{pca_model.svd_solver}.")
 
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     version=3 xgb_boost_num=100
 
     """
-    version = 1
+    version = 2
     # ================== save file name ====================
     test_result_file_name = f"./result/S03_pca_xgb_test_tra{is_transfer}_comp{n_components}_v{version}.csv"
     # =====================================================

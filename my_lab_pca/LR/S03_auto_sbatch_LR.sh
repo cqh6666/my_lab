@@ -1,14 +1,11 @@
 #!/bin/sh]
-start=0
 final=10000
 step=2000
-end=$step
 
-comp_list=(500 1000 2000 3000 4000)
-for comp in ${comp_list[@]}
+for comp in {100..1000..200}
 do
   let start=0
-  let end=start+$step
+  let end=$step
   while [ $start -lt $final ]
   do
       sbatch /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/code_lr/S03_pca_similar_LR.sh 1 ${comp} ${start} ${end}
