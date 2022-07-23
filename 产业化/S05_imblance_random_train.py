@@ -26,6 +26,8 @@ from sklearn.preprocessing import MinMaxScaler
 from imblearn.over_sampling import SMOTE, ADASYN
 from imblearn.pipeline import Pipeline
 from imblearn.under_sampling import RandomUnderSampler
+from imblearn.combine import SMOTETomek
+
 
 warnings.filterwarnings('ignore')
 
@@ -38,8 +40,8 @@ min_max = MinMaxScaler()
 numer_list = ['LIMIT_BAL', 'BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6', 'PAY_AMT1', 'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
 all_data_x[numer_list] = pd.DataFrame(min_max.fit_transform(all_data_x[numer_list]), columns=numer_list)
 
-pipeline = Pipeline([('over', SMOTE(sampling_strategy=0.8)),
-                     ('under', RandomUnderSampler(sampling_strategy=1))])
+pipeline = Pipeline([('over', SMOTETomek(random_state=2022)),
+                     ('under', RandomUnderSampler())])
 all_data_x, all_data_y = pipeline.fit_resample(all_data_x, all_data_y)
 
 model_list = {
@@ -64,5 +66,5 @@ def get_auc_score(model_dict, data_x, data_y):
 
 
 result_df = get_auc_score(model_list, all_data_x, all_data_y)
-result_df.to_csv("S03_imblanced_auc_result.csv")
+result_df.to_csv("S05_SMOTETomek_random_auc_result.csv")
 print(result_df)

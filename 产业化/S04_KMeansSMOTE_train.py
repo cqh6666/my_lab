@@ -12,6 +12,7 @@
 """
 __author__ = 'cqh'
 
+from imblearn.over_sampling import KMeansSMOTE
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.neural_network import MLPClassifier
 import xgboost as xgb
@@ -23,11 +24,10 @@ from sklearn.tree import DecisionTreeClassifier
 import lightgbm as lgb
 import warnings
 from sklearn.preprocessing import MinMaxScaler
-from imblearn.over_sampling import SMOTE, ADASYN
+from imblearn.combine import SMOTETomek
 from imblearn.pipeline import Pipeline
 from imblearn.under_sampling import RandomUnderSampler
 import sys
-
 warnings.filterwarnings('ignore')
 
 all_data = pd.read_csv("./default of credit card clients.csv")
@@ -35,12 +35,10 @@ all_data_x = all_data.drop(['default payment next month'], axis=1)
 all_data_y = all_data['default payment next month']
 
 min_max = MinMaxScaler()
-numer_list = ['LIMIT_BAL', 'BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6', 'PAY_AMT1',
-              'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
+numer_list = ['LIMIT_BAL', 'BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6', 'PAY_AMT1', 'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
 all_data_x[numer_list] = pd.DataFrame(min_max.fit_transform(all_data_x[numer_list]), columns=numer_list)
 
-pipeline = Pipeline([('over', SMOTE(sampling_strategy={0: 23364, 1: 6636 * 2}))])
-print("minority")
+pipeline = Pipeline([('over', KMeansSMOTE(kmeans_estimator=1, random_state=2022))])
 all_data_x, all_data_y = pipeline.fit_resample(all_data_x, all_data_y)
 
 model_list = {
@@ -52,7 +50,6 @@ model_list = {
     "mlp": MLPClassifier(),
     "svc": SVC()
 }
-
 
 def get_auc_score(model_dict, data_x, data_y):
     columns = list(model_dict.keys())
@@ -66,5 +63,5 @@ def get_auc_score(model_dict, data_x, data_y):
 
 
 result_df = get_auc_score(model_list, all_data_x, all_data_y)
-result_df.to_csv(f"S03_imblanced_all_auc_result.csv")
+result_df.to_csv(f"S04_KMeansSMOTE_auc_result.csv")
 print(result_df)
