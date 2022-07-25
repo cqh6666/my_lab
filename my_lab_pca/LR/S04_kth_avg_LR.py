@@ -119,9 +119,9 @@ if __name__ == '__main__':
     global_feature_weight = get_transfer_weight(is_transfer)
 
     """
-    version=3 修复变量bug后测试1w加样本
+    version=3 修复变量bug后测试1w加样本 5 10 15 20 50 100 200
     """
-    version = 1
+    version = 3
     # ================== save file name ====================
     test_result_file_name = f"./result/S04_lr_test_tra{is_transfer}_mean{top_k_mean}_v{version}.csv"
     # =====================================================

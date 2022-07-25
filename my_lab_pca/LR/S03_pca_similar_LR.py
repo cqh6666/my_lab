@@ -131,7 +131,7 @@ if __name__ == '__main__':
     global_feature_weight = get_transfer_weight(is_transfer)
 
     """
-    
+    version=3 pca - 20 60 100
     """
     version = 2
     # ================== save file name ====================

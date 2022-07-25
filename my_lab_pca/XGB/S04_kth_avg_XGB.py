@@ -28,16 +28,16 @@ from xgb_utils_api import get_xgb_model_pkl, get_local_xgb_para, get_init_simila
 warnings.filterwarnings('ignore')
 
 
-def get_similar_rank(pre_data_select):
+def get_similar_rank(_pre_data_select):
     """
     选择前10%的样本，并且根据相似得到样本权重
-    :param pre_data_select: 目标样本
+    :param _pre_data_select: 目标样本
     :return:
     """
     try:
         # 得先进行均值化
         similar_rank = pd.DataFrame(index=train_data_x.index)
-        similar_rank['distance'] = abs((train_data_x - pre_data_select.values) * init_similar_weight).sum(axis=1)
+        similar_rank['distance'] = abs((train_data_x - _pre_data_select.values) * init_similar_weight).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:top_k_mean].values
 
@@ -58,7 +58,7 @@ def get_similar_rank(pre_data_select):
     return patient_ids, sample_ki
 
 
-def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
+def xgb_train(fit_train_x, fit_train_y, pre_test_data_select, sample_ki):
     d_train_local = xgb.DMatrix(fit_train_x, label=fit_train_y, weight=sample_ki)
 
     xgb_local = xgb.train(params=params,
@@ -66,7 +66,7 @@ def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
                           num_boost_round=num_boost_round,
                           verbose_eval=False,
                           xgb_model=xgb_model)
-    d_test_local = xgb.DMatrix(pre_data_select)
+    d_test_local = xgb.DMatrix(pre_test_data_select)
     predict_prob = xgb_local.predict(d_test_local)[0]
     return predict_prob
 
@@ -78,9 +78,9 @@ def personalized_modeling(patient_id, _pre_data_select):
     pre_data_select - dataframe
     :return: 最终的相似样本
     """
-    patient_ids, sample_ki = get_similar_rank(_pre_data_select)
-
     try:
+        patient_ids, sample_ki = get_similar_rank(_pre_data_select)
+
         fit_train_x = train_data_x.loc[patient_ids]
         fit_train_y = train_data_y.loc[patient_ids]
 
@@ -89,6 +89,7 @@ def personalized_modeling(patient_id, _pre_data_select):
         global_lock.acquire()
         test_result.loc[patient_id, 'prob'] = predict_prob
         global_lock.release()
+
     except Exception as err:
         print(err)
         sys.exit(1)
@@ -118,11 +119,9 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
 
     """
-    version=1 xgb_boost_num=50
-    version=2 xgb_boost_num=25
-    version=3 xgb_boost_num=100
+    version=3 -  5 10 15
     """
-    version = 1
+    version = 3
     # ================== save file name ====================
     test_result_file_name = f"./result/S04_xgb_test_tra{is_transfer}_mean{top_k_mean}_v{version}.csv"
     # =====================================================

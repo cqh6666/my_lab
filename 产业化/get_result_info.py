@@ -32,9 +32,9 @@ def get_auroc(y_true, y_scores):
         "auroc":value
     }
     """
-    fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+    fpr, tpr, _ = roc_curve(y_true, y_scores)
     AUC = auc(fpr, tpr)
-    return {"plot": (fpr, tpr), "value": AUC}
+    return {"value": AUC, "plot": (fpr, tpr)}
 
 
 def get_auprc(y_true, y_scores):
@@ -44,12 +44,12 @@ def get_auprc(y_true, y_scores):
     :param y_scores:
     :return:
     """
-    precision, recall, thresholds = precision_recall_curve(y_true, y_scores)
+    precision, recall, _ = precision_recall_curve(y_true, y_scores)
     AUPR = auc(recall, precision)
     # if plot
     # result = pd.DataFrame(data={"precision": precision}, index=recall)
     # result.plot(drawstyle="steps-post")
-    return {"plot": (recall, precision), "value": AUPR}
+    return {"value": AUPR, "plot": (recall, precision)}
 
 
 def get_gini(actual, pred):
@@ -71,7 +71,7 @@ def get_gini(actual, pred):
 
     gini_norm = gini(actual, pred) / gini(actual, actual)
 
-    return {"plot": (get_gini_point(actual, pred)), "value": gini_norm}
+    return {"value": gini_norm, "plot": (get_gini_point(actual, pred))}
 
 
 def get_ks(y_true, y_scores):
@@ -84,14 +84,15 @@ def get_ks(y_true, y_scores):
     :param y_scores:
     :return:
     """
-    fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+    fpr, tpr, _ = roc_curve(y_true, y_scores)
     ks = tpr - fpr
     KS_value = max(tpr - fpr)
+
+    thresholds = np.linspace(0, 1, len(fpr))
     # if plot
     # result = pd.DataFrame(index=thresholds, data={"fpr": fpr, "tpr": tpr, "ks":ks})
     # result.plot()
-    thresholds[0] = 1
-    return {"plot": (thresholds, (fpr, tpr, ks)), "value": KS_value}
+    return {"value": KS_value, "plot": (thresholds, (fpr, tpr, ks))}
 
 
 def get_psi(y_true, y_scores):
@@ -104,11 +105,16 @@ def get_psi(y_true, y_scores):
 
 
 def get_csi(train_x, test_x):
+    if not isinstance(train_x, pd.DataFrame):
+        train_x = pd.DataFrame(train_x)
+    if not isinstance(test_x, pd.DataFrame):
+        test_x = pd.DataFrame(test_x)
+
     columns = train_x.columns
     result_dict = {}
     for col in columns:
         csi_values = get_psi(train_x[col].values, test_x[col].values)
-        result_dict[col] = csi_values
+        result_dict[col] = csi_values['value']
     return {"value": result_dict}
 
 
@@ -135,8 +141,8 @@ def psi(score_initial, score_new, num_bins=10, mode='fixed'):
     eps = 1e-4
 
     # Sort the data
-    score_initial.sort()
-    score_new.sort()
+    score_initial = sorted(score_initial)
+    score_new = sorted(score_new)
 
     # Prepare the bins
     min_val = min(min(score_initial), min(score_new))
@@ -177,6 +183,27 @@ def psi(score_initial, score_new, num_bins=10, mode='fixed'):
     # Return the psi values
     return psi_df['psi'].values
 
+
+def ks_compute(target_arr, proba_arr):
+    '''
+    ----------------------------------------------------------------------
+    功能：利用scipy库函数计算ks指标
+    ----------------------------------------------------------------------
+    :param proba_arr:  numpy array of shape (1,), 预测为1的概率.
+    :param target_arr: numpy array of shape (1,), 取值为0或1.
+    ----------------------------------------------------------------------
+    :return ks_value: float, ks score estimation
+    ----------------------------------------------------------------------
+    示例：
+    >>> ks_compute(proba_arr=df['score'], target_arr=df[target])
+    >>> 0.5262199213881699
+    ----------------------------------------------------------------------
+    '''
+    from scipy.stats import ks_2samp
+    get_ks = lambda proba_arr, target_arr: ks_2samp(proba_arr[target_arr == 1], \
+                                           proba_arr[target_arr == 0]).statistic
+    ks_value = get_ks(proba_arr, target_arr)
+    return ks_value
 
 if __name__ == '__main__':
     X, y = load_iris(return_X_y=True)

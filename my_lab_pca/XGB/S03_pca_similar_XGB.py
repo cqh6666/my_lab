@@ -135,9 +135,7 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
 
     """
-    version=1 xgb_boost_num=50
-    version=2 xgb_boost_num=25
-    version=3 xgb_boost_num=100
+    version = 2  pca = 20 60 100 
 
     """
     version = 2

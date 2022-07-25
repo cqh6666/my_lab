@@ -23,7 +23,7 @@ def get_shap_value(train_x, model):
     shap_value = explainer.shap_values(train_x)
     res = pd.DataFrame(data=shap_value, columns=train_x.columns)
     res = res.abs().mean(axis=0)
-    res = get_normalize_weight(res)
+    res = res / res.sum()
     return res
 
 

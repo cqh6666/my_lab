@@ -12,13 +12,18 @@
 """
 __author__ = 'cqh'
 
+import pickle
+
 import pandas as pd
 import os
+
+import shap
 from sklearn.model_selection import train_test_split
 
 pre_hour = 24
 root_dir = f"{pre_hour}h_old2"
 DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{root_dir}/"
+xgb_save_path_file = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/code_xgb/result/global_model/"
 
 all_data_file = f"all_{pre_hour}_df_rm1_norm1.feather"
 
@@ -67,7 +72,6 @@ def get_target_test_id():
     return test_data_ids_1, test_data_ids_0
 
 
-
 def covert_time_format(seconds):
     """将秒数转成比较好显示的格式
     >>> covert_time_format(3600) == '1.0 h'
@@ -111,10 +115,36 @@ def save_to_csv_by_row(csv_file, new_df):
     return True
 
 
+def get_shap_value(shap_file=f'0007_{pre_hour}h_global_xgb_shap_weight_boost500.csv'):
+    shap_weight_file = os.path.join(xgb_save_path_file, shap_file)
+    if not os.path.exists(shap_weight_file):
+        raise FileNotFoundError("shap file not found!")
+
+    shap_weight = pd.read_csv(shap_weight_file,index_col=0).squeeze().tolist()
+    return shap_weight
+
+
+def save_shap_value(xgb_model_file=f"0007_{pre_hour}h_global_xgb_boost500.pkl"):
+    xgb_model_file_path = os.path.join(xgb_save_path_file, xgb_model_file)
+    if not os.path.exists(xgb_model_file_path):
+        raise FileNotFoundError("xgb_model_file is not exist!")
+
+    train_data_x, _, _, _ = get_train_test_x_y()
+    xgb_model = pickle.load(open(xgb_model_file_path, "rb"))
+
+    explainer = shap.TreeExplainer(xgb_model)
+    shap_value = explainer.shap_values(train_data_x)
+    res = pd.DataFrame(data=shap_value, columns=train_data_x.columns)
+    res = res.abs().mean(axis=0)
+    res = res / res.sum()
+
+    shap_file = os.path.join(xgb_save_path_file, f'0007_{pre_hour}h_global_xgb_shap_weight_boost500.csv')
+    pd.DataFrame(res).to_csv(shap_file)
+    print("save shap weight success!")
+
+
 if __name__ == '__main__':
-    test_1, test_0 = get_target_test_id()
-    print("test_1", test_1)
-    print("test_0", test_0)
-
-
-
+    # save_shap_value()
+    # weight = get_shap_value()
+    shap_weight = pd.read_csv("./local_result/csv/0007_24h_global_xgb_shap_weight_boost500.csv", index_col=0).squeeze().tolist()
+    print(shap_weight)

@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/my_lab" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/my_lab_pca/LR" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/my_lab_pca" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/产业化" isTestSource="false" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.8 (lab_env)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

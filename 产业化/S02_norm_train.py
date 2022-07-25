@@ -23,26 +23,28 @@ from sklearn.tree import DecisionTreeClassifier
 import lightgbm as lgb
 import warnings
 from sklearn.preprocessing import MinMaxScaler
+
 warnings.filterwarnings('ignore')
 
-
-all_data = pd.read_csv("./default of credit card clients.csv")
-all_data_x = all_data.drop(['default payment next month'], axis=1)
+all_data = pd.read_csv("./default of credit card clients_new.csv")
+all_data_x = all_data.drop(['default payment next month', 'ID'], axis=1)
 all_data_y = all_data['default payment next month']
 
 min_max = MinMaxScaler()
-numer_list = ['LIMIT_BAL', 'BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6', 'PAY_AMT1', 'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
+numer_list = ['LIMIT_BAL', 'BILL_AMT1', 'BILL_AMT2', 'BILL_AMT3', 'BILL_AMT4', 'BILL_AMT5', 'BILL_AMT6', 'PAY_AMT1',
+              'PAY_AMT2', 'PAY_AMT3', 'PAY_AMT4', 'PAY_AMT5', 'PAY_AMT6']
 all_data_x[numer_list] = pd.DataFrame(min_max.fit_transform(all_data_x[numer_list]), columns=numer_list)
 
 model_list = {
-    "dtree": DecisionTreeClassifier(),
-    "lr": LogisticRegression(),
+    # "dtree": DecisionTreeClassifier(),
+    # "lr": LogisticRegression(),
     "rf": RandomForestClassifier(),
     "xgb": xgb.XGBClassifier(objective="binary:logistic", eval_metric="logloss"),
     "gbm": lgb.LGBMClassifier(),
-    "mlp": MLPClassifier(),
-    "svc": SVC()
+    # "mlp": MLPClassifier(),
+    # "svc": SVC()
 }
+
 
 def get_auc_score(model_dict, data_x, data_y):
     columns = list(model_dict.keys())
@@ -56,5 +58,5 @@ def get_auc_score(model_dict, data_x, data_y):
 
 
 result_df = get_auc_score(model_list, all_data_x, all_data_y)
-result_df.to_csv("S02_norm_auc_result.csv")
+result_df.to_csv("S02_norm_train_v2.csv")
 print(result_df)

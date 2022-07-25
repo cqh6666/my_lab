@@ -15,6 +15,7 @@ __author__ = 'cqh'
 import pandas as pd
 import os
 import pickle
+
 import xgboost as xgb
 
 pre_hour = 24
@@ -81,3 +82,5 @@ def get_xgb_global_model(fit_data, boost_num):
 
     xgb_global_model_file = os.path.join(MODEL_SAVE_PATH, f'0007_{pre_hour}h_global_xgb_boost{boost_num}.pkl')
     pickle.dump(model, open(xgb_global_model_file, "wb"))
+
+

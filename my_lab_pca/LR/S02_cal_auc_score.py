@@ -40,7 +40,7 @@ for boost in local_boost:
             result_df = pd.concat([result_df, cur_res_df], ignore_index=True)
 
         except Exception as err:
-            print(f"[{boost}, {select}] error!")
+            print(f"[{boost}, {select}] error!", err)
             continue
 
 result_df.to_csv(test_result_file_name, index=False)
