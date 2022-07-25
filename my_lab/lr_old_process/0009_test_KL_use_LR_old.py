@@ -12,7 +12,8 @@ import sys
 import time
 
 from sklearn.preprocessing import StandardScaler
-
+from lr_utils_api import get_init_similar_weight, get_transfer_weight
+from utils_api import get_train_test_x_y
 from my_logger import MyLog
 from sklearn.linear_model import LogisticRegression
 warnings.filterwarnings('ignore')
@@ -45,17 +46,14 @@ def personalized_modeling(pre_data, idx, x_test):
 
     sample_ki = similar_rank.iloc[:len_split, 1].tolist()
     sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
-
     lr_local = LogisticRegression(solver="liblinear", n_jobs=1, max_iter=local_lr_iter)
     lr_local.fit(fit_train, select_train_y, sample_ki)
 
-    y_predict = lr_local.predict_proba(fit_test)[:, 1]
+    y_predict = lr_local.predict_proba(fit_test)[:, 1][0]
+    print(y_predict)
     global_lock.acquire()
     test_result.loc[idx, 'prob'] = y_predict
     global_lock.release()
-
-    # run_time = round(time.time() - personalized_modeling_start_time, 2)
-    # my_logger.info(f"idx:{idx} | build time:{run_time}s")
 
 
 def get_feature_weight_list(metric_iter):
@@ -102,7 +100,7 @@ if __name__ == '__main__':
     pre_hour = 24
     select_ratio = 0.1
     m_sample_weight = 0.01
-    pool_nums = 25
+    pool_nums = 30
     global_lr_iter = 400
     local_lr_iter = 100
 
@@ -115,26 +113,34 @@ if __name__ == '__main__':
     my_logger = MyLog().logger
 
     # 训练集的X和Y
-    train_x, train_y, test_x, test_y = get_train_test_data()
+    # train_x, train_y, test_x, test_y = get_train_test_data()
+    train_x, train_y, test_x, test_y = get_train_test_x_y()
 
     final_idx = test_x.shape[0]
     end_idx = final_idx if end_idx > final_idx else end_idx
     len_split = int(train_x.shape[0] * select_ratio)  # the number of selected train data
 
+    test_x = test_x.iloc[start_idx:end_idx]
+    test_y = test_y.iloc[start_idx:end_idx]
+
     # 全局迁移策略或初始迭代 需要用到初始的csv
-    init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0007_{pre_hour}h_global_weight_lr_{global_lr_iter}.csv")
-    global_feature_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
+    init_weight = get_init_similar_weight()
+    # init_weight_file_name = os.path.join(MODEL_SAVE_PATH, f"0007_{pre_hour}h_global_weight_lr_{global_lr_iter}.csv")
+    global_feature_weight = get_transfer_weight(is_transfer=is_transfer)
+    # global_feature_weight = pd.read_csv(init_weight_file_name).squeeze().tolist()
 
     # 读取迭代了k次的相似性度量csv文件
-    psm_weight = get_feature_weight_list(metric_iter=learned_metric_iteration)
+    # psm_weight = get_feature_weight_list(metric_iter=learned_metric_iteration)
+    psm_weight = init_weight
 
     # 显示参数信息
     my_logger.warning(
         f"[iter params] - global_lr:{global_lr_iter}, local_lr:{local_lr_iter}, learned_iter:{learned_metric_iteration}, pool_nums:{pool_nums}, start_idx:{start_idx}, end_idx:{end_idx}, transfer_flag:{transfer_flag}")
 
+    test_id_list = test_y.index.values
     # init test result
-    test_result = pd.DataFrame(columns=['real', 'prob'])
-    test_result['real'] = test_y.iloc[start_idx:end_idx]
+    test_result = pd.DataFrame(index=test_id_list, columns=['real', 'prob'])
+    test_result['real'] = test_y
 
     global_lock = threading.Lock()
     start_time = time.time()
@@ -142,7 +148,7 @@ if __name__ == '__main__':
     thread_list = []
     pool = ThreadPoolExecutor(max_workers=pool_nums)
     # build personalized model for each test sample
-    for test_idx in range(start_idx, end_idx):
+    for test_idx in test_id_list:
         pre_data_select = test_x.loc[test_idx, :]
         x_test_select = test_x.loc[[test_idx], :]
         thread = pool.submit(personalized_modeling, pre_data_select, test_idx, x_test_select)
@@ -156,8 +162,8 @@ if __name__ == '__main__':
 
     # ----- save result -----
     try:
-        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_prob_{transfer_flag}.csv')
-        test_result.to_csv(test_result_csv, index=False)
+        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_{learned_metric_iteration}_{start_idx}_{end_idx}_prob_{transfer_flag}_v10.csv')
+        test_result.to_csv(test_result_csv, index=True)
         my_logger.warning(f"save {test_result_csv} success!")
     except Exception as err:
         my_logger.error(err)

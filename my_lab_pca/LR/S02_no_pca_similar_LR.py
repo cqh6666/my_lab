@@ -28,18 +28,17 @@ from my_logger import MyLog
 warnings.filterwarnings('ignore')
 
 
-def get_similar_rank(pre_data_select):
+def get_similar_rank(target_pre_data_select):
     """
     选择前10%的样本，并且根据相似得到样本权重
-    :param pre_data_select:
+    :param target_pre_data_select:
     :return:
     """
     try:
         similar_rank = pd.DataFrame(index=train_data_x.index)
-        similar_rank['distance'] = abs((train_data_x - pre_data_select.values) * init_similar_weight).sum(axis=1)
+        similar_rank['distance'] = abs((train_data_x - target_pre_data_select.values) * init_similar_weight).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:len_split].values
-
         sample_ki = similar_rank.iloc[:len_split, 0].values
         sample_ki = [(sample_ki[0] + m_sample_weight) / (val + m_sample_weight) for val in sample_ki]
     except Exception as err:
@@ -48,14 +47,14 @@ def get_similar_rank(pre_data_select):
     return patient_ids, sample_ki
 
 
-def lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
+def lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki):
     lr_local = LogisticRegression(solver="liblinear", n_jobs=1, max_iter=local_lr_iter)
     lr_local.fit(fit_train_x, fit_train_y, sample_ki)
-    predict_prob = lr_local.predict_proba(pre_data_select)[0][1]
+    predict_prob = lr_local.predict_proba(fit_test_x)[0][1]
     return predict_prob
 
 
-def personalized_modeling(test_id, pre_data_select_x):
+def personalized_modeling(patient_id, pre_data_select_x):
     """
     根据距离得到 某个目标测试样本对每个训练样本的距离
     test_id - patient id
@@ -63,28 +62,26 @@ def personalized_modeling(test_id, pre_data_select_x):
     :return: 最终的相似样本
     """
     try:
-        patient_ids, sample_ki = get_similar_rank(pre_data_select)
+        patient_ids, sample_ki = get_similar_rank(pre_data_select_x)
+
         fit_train_y = train_data_y.loc[patient_ids]
-        fit_test_x, fit_train_x = fit_train_test_data(patient_ids, pre_data_select_x)
+        select_train_x = train_data_x.loc[patient_ids]
+
+        if is_transfer == 1:
+            transfer_weight = global_feature_weight
+            fit_train_x = select_train_x * transfer_weight
+            fit_test_x = pre_data_select_x * transfer_weight
+        else:
+            fit_train_x = select_train_x
+            fit_test_x = pre_data_select_x
+
         predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
         global_lock.acquire()
-        test_result.loc[test_id, 'prob'] = predict_prob
+        test_result.loc[patient_id, 'prob'] = predict_prob
         global_lock.release()
     except Exception as err:
         print(err)
         sys.exit(1)
-
-
-def fit_train_test_data(patient_ids, pre_data_select_x):
-    select_train_x = train_data_x.loc[patient_ids]
-    if is_transfer == 1:
-        transfer_weight = global_feature_weight
-        fit_train_x = select_train_x * transfer_weight
-        fit_test_x = pre_data_select_x * transfer_weight
-    else:
-        fit_train_x = select_train_x
-        fit_test_x = pre_data_select_x
-    return fit_test_x, fit_train_x
 
 
 if __name__ == '__main__':
@@ -106,7 +103,13 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
     global_feature_weight = get_transfer_weight(is_transfer)
 
-    version = 2
+    """
+    version=9 测试S02 AUC问题
+    version=10 测试第二次
+    version=5 找到参数的原因，重新跑一遍3000  （确定问题）
+    version=3 修复变量bug后测试1w加样本
+    """
+    version = 3
     # ================== save file name ====================
     test_result_file_name = f"./result/S02_lr_test_tra{is_transfer}_iter{local_lr_iter}_select{select}_v{version}.csv"
     # =====================================================
@@ -152,4 +155,3 @@ if __name__ == '__main__':
         my_logger.info("save test result prob success!")
     else:
         my_logger.info("save error...")
-

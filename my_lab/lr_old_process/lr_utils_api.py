@@ -17,6 +17,7 @@ import os
 
 
 pre_hour = 24
+DATA_SOURCE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/data/{pre_hour}h_old2/"
 MODEL_SAVE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/code_lr/result/global_model/"
 global_lr_iter = 400
 

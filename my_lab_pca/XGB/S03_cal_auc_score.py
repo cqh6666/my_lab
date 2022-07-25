@@ -15,19 +15,18 @@ from sklearn.metrics import roc_auc_score
 import pandas as pd
 
 step = 3
-is_transfer = 1
-version = 1
+version = 2
 test_result_file_name = f"./result/S03_pca_xgb_test_v{version}.csv"
 
-pca_comps = [500, 1000, 2000, 3000, 4000]
+pca_comps = [100, 300, 500, 700, 900]
 
 result_df = pd.DataFrame(index=pca_comps, columns=['transfer', 'no_transfer'])
 for comp in pca_comps:
-    res = pd.read_csv(f"./result/S03_pca_xgb_test_tra1_comp{comp}_v1.csv")
+    res = pd.read_csv(f"./result/S03_pca_xgb_test_tra1_comp{comp}_v{version}.csv")
     score = roc_auc_score(res['real'], res['prob'])
     result_df.loc[comp, 'transfer'] = score
 
-    no_res = pd.read_csv(f"./result/S03_pca_xgb_test_tra0_comp{comp}_v1.csv")
+    no_res = pd.read_csv(f"./result/S03_pca_xgb_test_tra0_comp{comp}_v{version}.csv")
     score = roc_auc_score(no_res['real'], no_res['prob'])
     result_df.loc[comp, 'no_transfer'] = score
 

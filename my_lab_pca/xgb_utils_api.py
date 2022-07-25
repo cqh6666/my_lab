@@ -18,8 +18,7 @@ import pickle
 import xgboost as xgb
 
 pre_hour = 24
-root_dir = f"{pre_hour}h_old2"
-MODEL_SAVE_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/psm_with_xgb/{root_dir}/global_model/'
+MODEL_SAVE_PATH = f"/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/code_xgb/result/global_model/"
 
 
 def get_xgb_model_pkl(is_transfer):

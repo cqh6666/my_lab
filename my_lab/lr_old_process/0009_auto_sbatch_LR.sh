@@ -1,11 +1,11 @@
 #!/bin/sh
 
 is_transfer=$1
-iter=$2
+iter=0
 
 start=0
-final=21613
-step=1500
+final=3000
+step=1000
 end=$step
 
 while [ $start -lt $final ]

@@ -100,8 +100,8 @@ if __name__ == '__main__':
     my_logger = MyLog().logger
 
     select_rate = 0.1
-    is_transfer = 1
-    local_iter = 100
+    is_transfer = int(sys.argv[2])
+    local_iter = int(sys.argv[1])
 
     pool_nums = 20
     run_round = 10
@@ -119,7 +119,5 @@ if __name__ == '__main__':
 
     # transfer: select_rate, auc_25, auc_50, auc_100, auc_150, auc_200, auc_250 ...]
 
-    max_iter = int(sys.argv[1])
-    is_tra = int(sys.argv[2])
-    range_sub_train(max_iter, is_tra)
+    range_sub_train(local_iter, is_transfer)
 

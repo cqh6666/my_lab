@@ -30,15 +30,15 @@ from my_logger import MyLog
 warnings.filterwarnings('ignore')
 
 
-def get_similar_rank(pca_pre_data_select):
+def get_similar_rank(target_pre_data_select):
     """
     选择前10%的样本，并且根据相似得到样本权重
-    :param pca_pre_data_select:
+    :param target_pre_data_select:
     :return:
     """
     try:
         similar_rank = pd.DataFrame(index=pca_train_data_x.index)
-        similar_rank['distance'] = abs(pca_train_data_x - pca_pre_data_select.values).sum(axis=1)
+        similar_rank['distance'] = abs(pca_train_data_x - target_pre_data_select.values).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:len_split].values
 
@@ -68,12 +68,13 @@ def fit_train_test_data(patient_ids, pre_data_select_x):
         fit_test_x = pre_data_select_x
     return fit_test_x, fit_train_x
 
-def personalized_modeling(test_id, pre_data_select_x, pca_pre_data_select_x):
+
+def personalized_modeling(patient_id, pre_data_select_x, pca_pre_data_select_x):
     """
     根据距离得到 某个目标测试样本对每个训练样本的距离
-    :param test_id:
-    :param pre_data_select:
-    :param pca_pre_data_select:
+    :param pre_data_select_x: 原始测试样本
+    :param pca_pre_data_select_x:  处理后的测试样本
+    :param patient_id:
     :return:
     """
     try:
@@ -82,7 +83,7 @@ def personalized_modeling(test_id, pre_data_select_x, pca_pre_data_select_x):
         fit_test_x, fit_train_x = fit_train_test_data(patient_ids, pre_data_select_x)
         predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
         global_lock.acquire()
-        test_result.loc[test_id, 'prob'] = predict_prob
+        test_result.loc[patient_id, 'prob'] = predict_prob
         global_lock.release()
     except Exception as err:
         print(err)
@@ -129,6 +130,9 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
     global_feature_weight = get_transfer_weight(is_transfer)
 
+    """
+    
+    """
     version = 2
     # ================== save file name ====================
     test_result_file_name = f"./result/S03_pca_lr_test_tra{is_transfer}_comp{n_components}_v{version}.csv"

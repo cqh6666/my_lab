@@ -28,16 +28,16 @@ from my_logger import MyLog
 warnings.filterwarnings('ignore')
 
 
-def get_similar_rank(pre_data_select):
+def get_similar_rank(_pre_data_select):
     """
     选择前10%的样本，并且根据相似得到样本权重
-    :param pre_data_select: 目标样本
+    :param _pre_data_select: 目标样本
     :return:
     """
     try:
         # 得先进行均值化
         similar_rank = pd.DataFrame(index=train_data_x.index)
-        similar_rank['distance'] = abs((train_data_x - pre_data_select.values) * init_similar_weight).sum(axis=1)
+        similar_rank['distance'] = abs((train_data_x - _pre_data_select.values) * init_similar_weight).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:top_k_mean].values
 
@@ -58,28 +58,28 @@ def get_similar_rank(pre_data_select):
     return patient_ids, sample_ki
 
 
-def lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
+def lr_train(fit_train_x, fit_train_y, _pre_data_select, sample_ki):
     lr_local = LogisticRegression(solver="liblinear", n_jobs=1, max_iter=local_lr_iter)
     lr_local.fit(fit_train_x, fit_train_y, sample_ki)
-    predict_prob = lr_local.predict_proba(pre_data_select)[0][1]
+    predict_prob = lr_local.predict_proba(_pre_data_select)[0][1]
     return predict_prob
 
 
-def personalized_modeling(test_id, pre_data_select_x):
+def personalized_modeling(patient_id, _pre_data_select_x):
     """
     根据距离得到 某个目标测试样本对每个训练样本的距离
     test_id - patient id
     pre_data_select - dataframe
     :return: 最终的相似样本
     """
-    patient_ids, sample_ki = get_similar_rank(pre_data_select)
+    patient_ids, sample_ki = get_similar_rank(_pre_data_select_x)
 
     try:
         fit_train_y = train_data_y.loc[patient_ids]
-        fit_test_x, fit_train_x = fit_train_test_data(patient_ids, pre_data_select_x)
+        fit_test_x, fit_train_x = fit_train_test_data(patient_ids, _pre_data_select_x)
         predict_prob = lr_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
         global_lock.acquire()
-        test_result.loc[test_id, 'prob'] = predict_prob
+        test_result.loc[patient_id, 'prob'] = predict_prob
         global_lock.release()
     except Exception as err:
         print(err)
@@ -118,6 +118,9 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
     global_feature_weight = get_transfer_weight(is_transfer)
 
+    """
+    version=3 修复变量bug后测试1w加样本
+    """
     version = 1
     # ================== save file name ====================
     test_result_file_name = f"./result/S04_lr_test_tra{is_transfer}_mean{top_k_mean}_v{version}.csv"

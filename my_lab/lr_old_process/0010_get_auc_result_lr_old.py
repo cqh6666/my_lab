@@ -55,6 +55,28 @@ def get_concat_result(file_flag):
         raise err
 
 
+def get_concat_result_v9():
+    """
+    随便测试3000个测试样本计算AUC
+    :return:
+    """
+    start_idx = [0, 1000, 2000]
+    step = 1000
+    all_result = pd.DataFrame()
+
+    TEST_RESULT_PATH = f'/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/result/personal_model_with_lr/{root_dir}/test_result_{transfer_flag}/'
+    for start in start_idx:
+        test_result_csv = os.path.join(TEST_RESULT_PATH, f'0009_0_{start}_{start+step}_prob_{transfer_flag}_v9.csv')
+        result = pd.read_csv(test_result_csv, index_col=False)
+        result['prob'] = result['prob'].str.strip('[]').astype(np.float64)
+        all_result = pd.concat([all_result, result], axis=0)
+        logger.info(f"load {test_result_csv} csv and concat success!")
+
+    y_test, y_pred = all_result['real'], all_result['prob']
+    score = roc_auc_score(y_test, y_pred)
+    print("auc:", score)
+
+
 def save_result_file(score):
     """
     保存auc结果
@@ -105,13 +127,15 @@ if __name__ == '__main__':
     # 先合并再计算auc
     all_result_file = os.path.join(AUC_RESULT_PATH, all_prob_csv_name)
     # 将最终的auc结果进行保存
-    auc_result_file = os.path.join(AUC_RESULT_PATH, f"{pre_hour}h_lr_old_auc_result_{transfer_flag}.csv")
+    auc_result_file = os.path.join(AUC_RESULT_PATH, f"{pre_hour}h_lr_old_auc_result_{transfer_flag}_v9.csv")
 
-    if os.path.exists(all_result_file):
-        logger.warning(f"exist {all_result_file}, will not concat and cal result...")
-    else:
-        get_concat_result(flag)
-        cal_auc_result()
+    # if os.path.exists(all_result_file):
+    #     logger.warning(f"exist {all_result_file}, will not concat and cal result...")
+    # else:
+    #     get_concat_result(flag)
+    #     cal_auc_result()
+
+    get_concat_result_v9()
 
     # ================================ end ===================================
     # 等结果够多才进行绘制图像

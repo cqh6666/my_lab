@@ -71,23 +71,23 @@ def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
     return predict_prob
 
 
-def personalized_modeling(test_id, pre_data_select):
+def personalized_modeling(patient_id, _pre_data_select):
     """
     根据距离得到 某个目标测试样本对每个训练样本的距离
     test_id - patient id
     pre_data_select - dataframe
     :return: 最终的相似样本
     """
-    patient_ids, sample_ki = get_similar_rank(pre_data_select)
+    patient_ids, sample_ki = get_similar_rank(_pre_data_select)
 
     try:
         fit_train_x = train_data_x.loc[patient_ids]
         fit_train_y = train_data_y.loc[patient_ids]
 
-        predict_prob = xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki)
+        predict_prob = xgb_train(fit_train_x, fit_train_y, _pre_data_select, sample_ki)
 
         global_lock.acquire()
-        test_result.loc[test_id, 'prob'] = predict_prob
+        test_result.loc[patient_id, 'prob'] = predict_prob
         global_lock.release()
     except Exception as err:
         print(err)
