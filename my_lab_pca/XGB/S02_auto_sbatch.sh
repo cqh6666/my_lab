@@ -3,8 +3,8 @@ start=0
 step=2000
 end=$step
 final=10000
-boost_arr=(50 200)
-select_arr=(5 20)
+boost_arr=(50)
+select_arr=(10)
 for select in ${select_arr[@]}
 do
   for boost in ${boost_arr[@]}

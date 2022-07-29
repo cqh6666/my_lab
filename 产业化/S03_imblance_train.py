@@ -30,7 +30,7 @@ import sys
 
 warnings.filterwarnings('ignore')
 
-all_data = pd.read_csv("./default of credit card clients.csv")
+all_data = pd.read_csv("data_csv/default of credit card clients.csv")
 all_data_x = all_data.drop(['default payment next month'], axis=1)
 all_data_y = all_data['default payment next month']
 

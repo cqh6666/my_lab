@@ -120,8 +120,7 @@ def get_shap_value(shap_file=f'0007_{pre_hour}h_global_xgb_shap_weight_boost500.
     if not os.path.exists(shap_weight_file):
         raise FileNotFoundError("shap file not found!")
 
-    shap_weight = pd.read_csv(shap_weight_file,index_col=0).squeeze().tolist()
-    return shap_weight
+    return pd.read_csv(shap_weight_file, index_col=0).squeeze().tolist()
 
 
 def save_shap_value(xgb_model_file=f"0007_{pre_hour}h_global_xgb_boost500.pkl"):
@@ -146,5 +145,5 @@ def save_shap_value(xgb_model_file=f"0007_{pre_hour}h_global_xgb_boost500.pkl"):
 if __name__ == '__main__':
     # save_shap_value()
     # weight = get_shap_value()
-    shap_weight = pd.read_csv("./local_result/csv/0007_24h_global_xgb_shap_weight_boost500.csv", index_col=0).squeeze().tolist()
-    print(shap_weight)
+    # print(shap_weight)
+    pass

@@ -120,8 +120,9 @@ if __name__ == '__main__':
 
     """
     version=3 -  5 10 15
+    version=4 -  1 2 3 4 5 6 7 8 9
     """
-    version = 3
+    version = 4
     # ================== save file name ====================
     test_result_file_name = f"./result/S04_xgb_test_tra{is_transfer}_mean{top_k_mean}_v{version}.csv"
     # =====================================================

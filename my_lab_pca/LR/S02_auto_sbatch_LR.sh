@@ -1,6 +1,6 @@
 #!/bin/sh
 start=0
-step=1000
+step=2000
 end=$step
 final=10000
 boost_arr=(50 100 200)

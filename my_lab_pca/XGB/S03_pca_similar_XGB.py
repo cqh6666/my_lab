@@ -23,7 +23,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 
 from my_logger import MyLog
-from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row
+from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row, get_shap_value
 from xgb_utils_api import get_xgb_model_pkl, get_local_xgb_para, get_init_similar_weight
 
 warnings.filterwarnings('ignore')
@@ -132,13 +132,15 @@ if __name__ == '__main__':
 
     params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
     xgb_model = get_xgb_model_pkl(is_transfer)
-    init_similar_weight = get_init_similar_weight()
+    init_similar_weight = get_shap_value()
 
     """
     version = 2  pca = 20 60 100 
+    version = 3  shap weight
+    version = 4  lr weight
 
     """
-    version = 2
+    version = 3
     # ================== save file name ====================
     test_result_file_name = f"./result/S03_pca_xgb_test_tra{is_transfer}_comp{n_components}_v{version}.csv"
     # =====================================================

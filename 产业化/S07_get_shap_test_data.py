@@ -30,14 +30,13 @@ warnings.filterwarnings('ignore')
 
 
 def get_shap_value(_train_x, _test_x):
-    # xgb_model = xgb.XGBClassifier(objective="binary:logistic", eval_metric="logloss")
-    # xgb_model.fit(_train_x, train_y)
-    model = RandomForestClassifier()
+    model = xgb.XGBClassifier(objective="binary:logistic", eval_metric="logloss")
     model.fit(_train_x, train_y)
     y_score = model.predict_proba(_test_x)[:, 1]
     auc = roc_auc_score(test_y, y_score)
     explainer = shap.TreeExplainer(model)
     shap_value = explainer.shap_values(_test_x)
+    explainer.explain_row()
     res = pd.DataFrame(data=shap_value, columns=_test_x.columns)
     res = res.abs().mean(axis=0)
 
@@ -48,8 +47,8 @@ def get_shap_value(_train_x, _test_x):
 
 
 if __name__ == '__main__':
-    all_data_old = pd.read_csv("./default of credit card clients.csv")
-    all_data = pd.read_csv("./default of credit card clients_new.csv")
+    all_data_old = pd.read_csv("data_csv/default of credit card clients.csv")
+    all_data = pd.read_csv("data_csv/default of credit card clients_new.csv")
     all_data_x = all_data.drop(['default payment next month', 'ID'], axis=1)
     all_data_y = all_data['default payment next month']
 

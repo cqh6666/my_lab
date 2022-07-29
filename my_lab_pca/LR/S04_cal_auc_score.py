@@ -15,11 +15,11 @@ from sklearn.metrics import roc_auc_score
 import pandas as pd
 
 # S04_lr_test_tra1_mean20_v1.csv
-version = 3
+version = 4
 step = 4
 test_result_file_name = f"./result/S04_mean_lr_test_v{version}.csv"
 
-means = [20, 50, 100, 200]
+means = [1, 2, 3, 4, 6, 7, 8, 9]
 
 result_df = pd.DataFrame(index=means, columns=['transfer', 'no_transfer'])
 for comp in means:

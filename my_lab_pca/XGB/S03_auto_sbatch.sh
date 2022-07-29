@@ -2,7 +2,7 @@
 final=10000
 step=2000
 
-for comp in {20..100..20}
+for comp in {100}
 do
   let start=0
   let end=$step

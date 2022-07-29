@@ -4,7 +4,7 @@ step=2000
 final=10000
 end=$step
 
-mean_list=(5 10 15)
+mean_list=(1 2 3 4 5 6 7 8 9)
 for mean in ${mean_list[@]}
 do
   let start=0

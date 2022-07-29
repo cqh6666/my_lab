@@ -8,3 +8,7 @@ scipy
 matplotlib
 shap
 schedule
+
+lightgbm
+imblearn
+objgraph

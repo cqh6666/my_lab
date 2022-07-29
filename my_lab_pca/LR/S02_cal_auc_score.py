@@ -16,10 +16,10 @@ from sklearn.metrics import roc_auc_score
 import pandas as pd
 
 step = 2
-version = 3
+version = 6
 test_result_file_name = f"./result/S02_lr_test_v{version}.csv"
 
-local_boost = [50, 100, 200]
+local_boost = [50, 100]
 select_rate = [5, 10, 20]
 
 columns = ['local_boost', 'select_rate', 'transfer', 'no_transfer']

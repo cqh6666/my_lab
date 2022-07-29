@@ -21,8 +21,9 @@ from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
-from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row
-from lr_utils_api import get_init_similar_weight, get_transfer_weight
+from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row, get_shap_value
+from lr_utils_api import get_transfer_weight
+from xgb_utils_api import get_init_similar_weight
 from my_logger import MyLog
 
 warnings.filterwarnings('ignore')
@@ -108,8 +109,10 @@ if __name__ == '__main__':
     version=10 测试第二次
     version=5 找到参数的原因，重新跑一遍3000  （确定问题）
     version=3 修复变量bug后测试1w加样本
+    version=4 shap weight
+    version=6 xgb weight
     """
-    version = 3
+    version = 6
     # ================== save file name ====================
     test_result_file_name = f"./result/S02_lr_test_tra{is_transfer}_iter{local_lr_iter}_select{select}_v{version}.csv"
     # =====================================================
