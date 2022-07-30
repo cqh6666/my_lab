@@ -18,7 +18,8 @@ import os
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-
+import matplotlib.lines as mlines
+import matplotlib.transforms as mtransforms
 
 def plot_auroc(save_file, x, y):
     """
@@ -66,9 +67,14 @@ def plot_ks(save_file, x, y):
 
 def plot_calibration_curve(save_file, x, y):
     mean_predicted_value, fraction_of_positives = x, y
-    plt.plot(mean_predicted_value, fraction_of_positives, drawstyle="steps-post")
-    plt.xlabel("Fraction of positives")
-    plt.title('Calibration plots  (reliability curve)')
+    fig, ax = plt.subplots()
+    # only these two lines are calibration curves
+    ax.plot(mean_predicted_value, fraction_of_positives, 's-', label='best_xgb+calibration+fit')
+    # reference line, legends, and axis labels
+    ax.plot([0, 1], [0, 1], "k:", label="Perfectly calibrated")
+    fig.suptitle('Calibration plots  (reliability curve)')
+    ax.set_xlabel('Mean predicted value')
+    ax.set_ylabel('Fraction of positives')
     plt.savefig(save_file)
     plt.close()
 
@@ -76,7 +82,7 @@ def plot_calibration_curve(save_file, x, y):
 def plot_psi(save_file, x, y):
     labels, (first, second) = x, y
     x = np.arange(len(labels))  # x轴刻度标签位置
-    width = 1  # 柱子的宽度
+    width = 0.25  # 柱子的宽度
     # 计算每个柱子在x轴上的位置，保证x轴刻度标签居中
     # x - width/2，x + width/2即每组数据在x轴上的位置
     plt.bar(x - width / 2, first, width, label='init')

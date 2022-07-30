@@ -191,13 +191,3 @@ if __name__ == '__main__':
     saveModelPerformance(all_score)
     # 保存相关统计信息
     saveAllStatistics(train_data, test_data, origin_test_data_x)
-
-    # 最重要的6个特征
-    train_positive_sample_true = train_data.loc[:,Label_name] == 1
-    train_positive_shap_select = train_shap.loc[train_positive_sample_true]
-    train_negative_shap_select = train_shap.loc[~train_positive_sample_true]
-    mean_train_positive_shap = train_positive_shap_select.loc[:,first_X_feature_name:last_X_feature_name].mean(axis=0)
-    mean_train_negative_shap = train_negative_shap_select.loc[:,first_X_feature_name:last_X_feature_name].mean(axis=0)
-    InterCalss_ScoreDiff = mean_train_positive_shap - mean_train_negative_shap
-    InterCalss_ScoreDiff.sort_values(ascending=False,inplace=True)
-    important_feature = InterCalss_ScoreDiff.index.tolist()[:num_of_show_feature]
