@@ -64,14 +64,13 @@ def train_strategy(clf, strategy=3):
     return train_prob, test_prob
 
 
-def get_output_file(model_name, model):
+def get_output_file(model):
     """
     输出4个文件
-    :param model_name: 模型名称
     :param model: 模型
     :return:
     """
-    save_path = f"./S11_result/{model_name}/v{version}"
+    save_path = f"./output_json/input_csv/best_model/"
     if not os.path.exists(save_path):
         os.makedirs(save_path)
         print("create new path", save_path)
@@ -117,9 +116,9 @@ if __name__ == '__main__':
     version = 2
 
     # xgb.XGBClassifier(objective="binary:logistic", eval_metric="logloss", random_state=random_state, **xgb_params),
-    models = ['xgb']
+    models = ['best_xgb']
     model_list = get_model_dict(model_select=models, engineer=True)
-    best_model = model_list.get('xgb')
+    best_model = model_list.get('best_xgb')
 
     # 传入名称和最好的模型
-    get_output_file("xgb", best_model)
+    get_output_file(best_model)

@@ -97,10 +97,6 @@ def getDataOverviewInfo(data_samples):
         {"num": expected_positive, "des": '违约人数'},
         {"num": round(total_expect_value, 4), "des": "违约金额"},
         {"num": round(avg_prediction, 4), "des": "违约率"},
-        {"num": expected_positive, "des": "风险人数"},
-        {"num": round(avg_prediction, 4), "des": "风险人数比例"},
-        {"num": all_count - expected_positive, "des": "优质人数"},
-        {"num": 1 - round(avg_prediction, 4), "des": "优质人数比例"},
     ]
 
 
@@ -117,10 +113,30 @@ def getModelPerformance(model_score_df):
     """
     assert isinstance(model_score_df, pd.DataFrame)
 
-    return {
-        "columns": model_score_df.columns.to_list(),
-        "rows": model_score_df.to_dict(orient='records')
-    }
+    columns = model_score_df.columns.to_list()
+    scores_list = []
+    for column in columns:
+
+        temp_df = pd.DataFrame(data={
+            "model": model_score_df.index,
+            column: model_score_df[column]
+        })
+
+        if column == 'AUC':
+            new_res = [
+                ["同行平均-逻辑回归", 0.7229],
+                ["同行平均-MLP", 0.77],
+                ["同行平均-XGB", 0.77715]
+            ]
+            temp_df = pd.concat([temp_df, pd.DataFrame(columns=["model",column], data=new_res)], axis=0)
+
+        temp_dict = {
+            "columns": temp_df.columns.to_list(),
+            "rows": temp_df.to_dict(orient='records')
+        }
+        scores_list.append(temp_dict)
+
+    return scores_list
 
 
 def saveAllStatistics(train_d, test_d, origin_data_x):
@@ -132,14 +148,11 @@ def saveAllStatistics(train_d, test_d, origin_data_x):
         "testDataOverview": getDataOverviewInfo(test_d)
     }
 
-    # 测试样例前5个
-    test_example_x = test_d.iloc[:5].drop([Label_name, prediction_name], axis=1)
-
     all_res_json = {
         "taskIntroductionInfo": getTaskIntroductionInfo(),
         "dataIntroductionInfo": getDataIntroductionInfo(cols),
         "dataColsInfo": getDataColsInfo(cols),
-        "dataExample": getDataExampleInfo(test_example_x),
+        "dataChineseColsInfo": getDataColsInfo(new_columns),
         "dataOverview": dataOverview,
     }
     # save
@@ -172,22 +185,26 @@ if __name__ == '__main__':
     group_num = 4
     num_of_show_feature = 6
 
-    version = 1
-    save_path = f'./v{version}'
+    version = 13
+    save_path = f'./output_json/v{version}'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    all_score = pd.read_csv("output_json/input_csv/all_scores_v7.csv", index_col=0)
+    all_score = pd.read_csv(f"output_json/input_csv/all_scores_v{version}.csv", index_col=0)
 
-    test_data = pd.read_csv("output_json/input_csv/pred_raw_data/test_data_output.csv")
-    test_shap = pd.read_csv("output_json/input_csv/pred_raw_data/test_shap_output.csv")
-    train_data = pd.read_csv("output_json/input_csv/pred_raw_data/train_data_output.csv")
-    train_shap = pd.read_csv("output_json/input_csv/pred_raw_data/train_shap_output.csv")
+    test_data = pd.read_csv("output_json/input_csv/best_model/test_data_output.csv")
+    test_shap = pd.read_csv("output_json/input_csv/best_model/test_shap_output.csv")
+    train_data = pd.read_csv("output_json/input_csv/best_model/train_data_output.csv")
+    train_shap = pd.read_csv("output_json/input_csv/best_model/train_shap_output.csv")
 
     origin_test_data_x = test_data.drop([prediction_name, Label_name], axis=1)
 
+    # 获取中文columns
+    all_data = pd.read_csv("data_csv/default of credit card clients_new(Chinese).csv", encoding='gbk')
+    all_data = all_data.drop(['ID', 'default payment next month'], axis=1)
+    new_columns = all_data.columns.tolist()
+
     # 保存模型性能信息
-    all_score.reset_index(inplace=True)
     saveModelPerformance(all_score)
     # 保存相关统计信息
     saveAllStatistics(train_data, test_data, origin_test_data_x)

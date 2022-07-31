@@ -20,16 +20,16 @@ import warnings
 from utils.data_utils import get_train_test_X_y, get_model_dict, save_to_csv_by_row
 from utils.score_utils import get_all_score
 from utils.strategy_utils import train_strategy
+
 warnings.filterwarnings('ignore')
 
 
-def get_all_model_score(all_model_dict, train_x, train_y, save_path='', index_desc='fit', strategy_select=1):
-
+def get_all_model_score(all_model_dict, all_model_desc, save_path='', index_desc='fit', strategy_select=1):
     for name, clf in all_model_dict.items():
-        train_prob, test_prob = train_strategy(clf, strategy_select, train_x, train_y, test_data_x)
+        train_prob, test_prob = train_strategy(clf, strategy_select, train_data_x, train_data_y, test_data_x)
 
         all_score_dict = get_all_score(test_data_y, test_prob, train_prob)
-        all_res_df = pd.DataFrame(data=all_score_dict, index=[name + "+" + index_desc])
+        all_res_df = pd.DataFrame(data=all_score_dict, index=[all_model_desc[name] + index_desc])
         all_score_file = os.path.join(save_path, f"all_scores_v{version}.csv")
         save_to_csv_by_row(all_score_file, all_res_df)
 
@@ -51,17 +51,28 @@ if __name__ == '__main__':
     version = 5 xgb lgb 调参
     version = 8
     """
-    version = 9
-    dir_path = f"new_result_csv/new_norm/v{version}"
+    version = 12
+    dir_path = f"output_json/input_csv/"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
     # 初始建模
     init_model_select = ['lr', 'mlp', 'xgb']
+    init_model_desc = {
+        'lr': '原始逻辑回归',
+        'mlp': '原始MLP',
+        'xgb': '原始XGB'
+    }
     init_model_dict = get_model_dict(init_model_select, engineer=True)
-    get_all_model_score(all_model_dict=init_model_dict, train_x=train_data_x, train_y=train_data_y, save_path=dir_path, strategy_select=1, index_desc='fit')
+    get_all_model_score(all_model_dict=init_model_dict, all_model_desc=init_model_desc, save_path=dir_path,
+                        strategy_select=1, index_desc='')
+
 
     # 好的建模策略
-    my_best_model_seelct = ['best_xgb']
-    best_model_dict = get_model_dict(my_best_model_seelct, engineer=True)
-    get_all_model_score(all_model_dict=best_model_dict, train_x=train_data_x, train_y=train_data_y, save_path=dir_path, strategy_select=3, index_desc='calib+fit')
+    my_best_model_select = ['best_xgb']
+    my_best_model_desc = {
+        'best_xgb': '团队最终构建的模型'
+    }
+    best_model_dict = get_model_dict(my_best_model_select, engineer=True)
+    get_all_model_score(all_model_dict=best_model_dict, all_model_desc=my_best_model_desc, save_path=dir_path,
+                        strategy_select=3, index_desc='')

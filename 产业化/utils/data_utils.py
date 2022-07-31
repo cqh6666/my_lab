@@ -46,18 +46,18 @@ def get_train_test_data(engineer=False, norm=False):
 
     if engineer:
         if norm:
-            train_data = pd.read_csv("./data_csv/new_data/all_train_data_norm.csv")
-            test_data = pd.read_csv("./data_csv/new_data/all_test_data_norm.csv")
+            train_data = pd.read_csv("./data_csv_old/new_data/all_train_data_norm.csv")
+            test_data = pd.read_csv("./data_csv_old/new_data/all_test_data_norm.csv")
         else:
-            train_data = pd.read_csv("./data_csv/new_data/all_train_data.csv")
-            test_data = pd.read_csv("../data_csv/new_data/all_test_data.csv")
+            train_data = pd.read_csv("./data_csv_old/new_data/all_train_data.csv")
+            test_data = pd.read_csv("./data_csv_old/new_data/all_test_data.csv")
     else:
         if norm:
-            train_data = pd.read_csv("./data_csv/all_train_data_norm.csv")
-            test_data = pd.read_csv("./data_csv/all_test_data_norm.csv")
+            train_data = pd.read_csv("./data_csv/raw_data/all_train_data_norm.csv")
+            test_data = pd.read_csv("./data_csv/raw_data/all_test_data_norm.csv")
         else:
-            train_data = pd.read_csv("./data_csv/all_train_data.csv")
-            test_data = pd.read_csv("./data_csv/all_test_data.csv")
+            train_data = pd.read_csv("./data_csv/raw_data/all_train_data.csv")
+            test_data = pd.read_csv("./data_csv/raw_data/all_test_data.csv")
 
     return train_data, test_data
 

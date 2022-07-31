@@ -50,12 +50,12 @@ def get_all_score(y_test, y_pred, train_prob):
 
 
 def get_all_info(y_test, y_pred, train_prob):
-    auc_info = get_auroc(y_test, y_pred)
-    prc_info = get_auprc(y_test, y_pred)
-    gini_info = get_gini(y_test, y_pred)
-    ks_info = get_ks(y_test, y_pred)
-    psi_info = get_psi(train_prob, y_pred, mode='quantile')
-    calibration_info = get_expected_calibration_error(y_test, y_pred)
+    auc_info = get_auroc(y_test, y_pred)['build_plot']
+    prc_info = get_auprc(y_test, y_pred)['build_plot']
+    gini_info = get_gini(y_test, y_pred)['build_plot']
+    ks_info = get_ks(y_test, y_pred)['build_plot']
+    psi_info = get_psi(train_prob, y_pred, mode='quantile')['plt_plot']
+    calibration_info = get_expected_calibration_error(y_test, y_pred)['build_plot']
 
     all_score_dict = {
         "AUC": auc_info,
@@ -67,6 +67,28 @@ def get_all_info(y_test, y_pred, train_prob):
     }
 
     return all_score_dict
+
+
+def pick_arange(arange, num=30):
+    """
+    分段取有限个点
+    :param arange:
+    :param num:
+    :return:
+    """
+    if not isinstance(arange, np.ndarray):
+        arange = np.array(arange)
+    if num > len(arange):
+        return arange
+    else:
+        output = np.array([], dtype=arange.dtype)
+        seg = len(arange) / num
+        for n in range(num):
+            if int(seg * (n + 1)) >= len(arange):
+                output = np.append(output, round(arange[-1], 4))
+            else:
+                output = np.append(output, round(arange[int(seg * n)], 4))
+        return output
 
 
 def get_auroc(y_true, y_scores):
@@ -82,7 +104,19 @@ def get_auroc(y_true, y_scores):
     """
     fpr, tpr, _ = roc_curve(y_true, y_scores)
     AUC = auc(fpr, tpr)
-    return {"value": AUC, "plot": (fpr, tpr)}
+
+    # 处理tpr, fpr点
+    fpr, tpr = pick_arange(fpr), pick_arange(tpr)
+
+    plot_df = pd.DataFrame(columns=['X', 'AUROC'])
+    plot_df['X'] = fpr
+    plot_df['AUROC'] = tpr
+
+    plot_dict = {
+        "columns": plot_df.columns.tolist(),
+        "rows": plot_df.to_dict(orient='records')
+    }
+    return {"value": AUC, "build_plot": plot_dict, "plt_plot": (fpr, tpr)}
 
 
 def get_auprc(y_true, y_scores):
@@ -94,10 +128,21 @@ def get_auprc(y_true, y_scores):
     """
     precision, recall, _ = precision_recall_curve(y_true, y_scores)
     AUPR = auc(recall, precision)
+    precision, recall = pick_arange(precision), pick_arange(recall)
+
     # if plot
-    # result = pd.DataFrame(data={"precision": precision}, index=recall)
-    # result.plot(drawstyle="steps-post")
-    return {"value": AUPR, "plot": (recall, precision)}
+    #     # result = pd.DataFrame(data={"precision": precision}, index=recall)
+    #     # result.plot(drawstyle="steps-post")
+
+    plot_df = pd.DataFrame(columns=['X', 'AUPRC'])
+    plot_df['X'] = recall
+    plot_df['AUPRC'] = precision
+
+    plot_dict = {
+        "columns": plot_df.columns.tolist(),
+        "rows": plot_df.to_dict(orient='records')
+    }
+    return {"value": AUPR, "build_plot": plot_dict, "plt_plot": (recall, precision)}
 
 
 def get_gini(actual, pred):
@@ -118,8 +163,20 @@ def get_gini(actual, pred):
         return giniSum / len(y_true)
 
     gini_norm = gini(actual, pred) / gini(actual, actual)
+    x_values, (y_values, diagonal) = get_gini_point(actual, pred)
 
-    return {"value": gini_norm, "plot": (get_gini_point(actual, pred))}
+    le = np.linspace(0, 1, len(x_values))
+    le = [round(l, 4) for l in le]
+    plot_df = pd.DataFrame(columns=['X', 'LC', 'LE'])
+    plot_df['X'] = x_values
+    plot_df['LC'] = y_values
+    plot_df['LE'] = le
+
+    plot_dict = {
+        "columns": plot_df.columns.tolist(),
+        "rows": plot_df.to_dict(orient='records')
+    }
+    return {"value": gini_norm, "build_plot": plot_dict, "plt_plot": (x_values, (y_values, diagonal))}
 
 
 def get_ks(y_true, y_scores):
@@ -140,7 +197,18 @@ def get_ks(y_true, y_scores):
     # if plot
     # result = pd.DataFrame(index=thresholds, data={"fpr": fpr, "tpr": tpr, "ks":ks})
     # result.plot()
-    return {"value": KS_value, "plot": (thresholds, (fpr, tpr, ks))}
+
+    plot_df = pd.DataFrame(columns=['X', 'FPR', 'TPR', 'KS'])
+    plot_df['X'] = pick_arange(thresholds)
+    plot_df['FPR'] = pick_arange(fpr)
+    plot_df['TPR'] = pick_arange(tpr)
+    plot_df['KS'] = pick_arange(ks)
+
+    plot_dict = {
+        "columns": plot_df.columns.tolist(),
+        "rows": plot_df.to_dict(orient='records')
+    }
+    return {"value": KS_value, "build_plot": plot_dict, "plt_plot": (thresholds, (fpr, tpr, ks))}
 
 
 def get_psi(train_scores, test_scores, mode='quantile'):
@@ -153,7 +221,7 @@ def get_psi(train_scores, test_scores, mode='quantile'):
     psi_x = psi_df['bins_show'].values
     psi_train = psi_df['percent_initial'].values
     psi_test = psi_df['percent_new'].values
-    return {"value": psi_value, "plot": (psi_x, (psi_train, psi_test))}
+    return {"value": psi_value, "plt_plot": (psi_x, (psi_train, psi_test))}
 
 
 def get_csi(train_x, test_x):
@@ -168,7 +236,7 @@ def get_csi(train_x, test_x):
     if not isinstance(test_x, pd.DataFrame):
         test_x = pd.DataFrame(test_x)
 
-    columns = train_x.columns
+    columns = train_x.columns.tolist()
     result_dict = {}
     for col in columns:
         result_dict[col] = np.sum(psi(train_x[col].values, test_x[col].values))
@@ -191,7 +259,7 @@ def get_gini_point(y_true, y_scores):
     # Display the 45° line stacked on top of the y values
     diagonal = [x - y for (x, y) in zip(x_values, y_values)]
 
-    return x_values, (y_values, diagonal)
+    return pick_arange(x_values), (pick_arange(y_values), pick_arange(diagonal))
 
 
 def get_brier_score(y_test, y_pred):
@@ -201,7 +269,22 @@ def get_brier_score(y_test, y_pred):
 def get_expected_calibration_error(y_test, test_prob):
     fraction_of_positives, mean_predicted_value = calibration_curve(y_test, test_prob, n_bins=10, strategy='quantile')
     expected_calibration_error = [np.mean(np.square(np.array(fraction_of_positives - mean_predicted_value)))]
-    return {"value": expected_calibration_error, "plot": (mean_predicted_value, fraction_of_positives)}
+    fraction_of_positives = [round(i, 4) for i in fraction_of_positives]
+    mean_predicted_value = [round(i, 4) for i in mean_predicted_value]
+
+    le = np.linspace(0, 1, len(mean_predicted_value))
+    le = [round(l, 4) for l in le]
+    plot_df = pd.DataFrame(columns=['X', 'ECE', 'LE'])
+    plot_df['X'] = mean_predicted_value
+    plot_df['ECE'] = fraction_of_positives
+    plot_df['LE'] = le
+
+    plot_dict = {
+        "columns": plot_df.columns.tolist(),
+        "rows": plot_df.to_dict(orient='records')
+    }
+
+    return {"value": expected_calibration_error, "build_plot":plot_dict, "plt_plot": (mean_predicted_value, fraction_of_positives)}
 
 
 def psi(score_initial, score_new, num_bins=10, mode='fixed'):
@@ -256,8 +339,9 @@ def psi(score_initial, score_new, num_bins=10, mode='fixed'):
         psi_df['percent_initial'] / psi_df['percent_new'])
 
     # X轴
-    select_range = np.linspace(0, 100, num_bins+1)
-    bins_show = ['{}%-{}%'.format(int(select_range[select]),int(select_range[select+1])) for select in range(len(select_range)-1)]
+    select_range = np.linspace(0, 100, num_bins + 1)
+    bins_show = ['{}%-{}%'.format(int(select_range[select]), int(select_range[select + 1])) for select in
+                 range(len(select_range) - 1)]
     psi_df['bins_show'] = bins_show
     psi_df.drop(['initial', 'new'], axis=1)
 
@@ -267,46 +351,46 @@ def psi(score_initial, score_new, num_bins=10, mode='fixed'):
 
 
 if __name__ == '__main__':
-
-    test_data = pd.read_csv("../data_csv/other/test_data_output.csv")
-    train_data = pd.read_csv("../data_csv/other/train_data_output.csv")
+    test_data = pd.read_csv("../data_csv_old/other/test_data_output.csv")
+    train_data = pd.read_csv("../data_csv_old/other/train_data_output.csv")
     train_predict = train_data['predict_prob']
     test_predict = test_data['predict_prob']
-    psi_quan_info = get_psi(train_predict, test_predict, mode='quantile')
-    psi_v = psi_quan_info['value']
-    psi_pl = psi_quan_info['plot']
+    # psi_quan_info = get_psi(train_predict, test_predict, mode='quantile')
+    # psi_v = psi_quan_info['value']
+    # psi_pl = psi_quan_info['plot']
+    get_auroc(y_true=test_data['y'], y_scores=test_predict)
 
 # X, y = load_iris(return_X_y=True)
-    #
-    # # Add noisy features
-    # random_state = np.random.RandomState(0)
-    # n_samples, n_features = X.shape
-    # X = np.concatenate([X, random_state.randn(n_samples, 200 * n_features)], axis=1)
-    #
-    # # Limit to the two first classes, and split into training and test
-    # X_train, X_test, y_train, y_test = train_test_split(
-    #     X[y < 2], y[y < 2], test_size=0.5, random_state=random_state
-    # )
-    #
-    # lr = LogisticRegression()
-    # lr.fit(X_train, y_train)
-    # y_predict = lr.predict_proba(X_test)[:, 1]
-    # train_predict = lr.predict_proba(X_train)[:, 1]
-    # # result1 = get_auroc(y_test, y_predict)
-    # # result2 = get_auprc(y_test, y_predict)
-    # # result3 = get_ks(y_test, y_predict)
-    # # result4 = get_gini(y_test, y_predict)
-    # result6 = get_psi(train_predict, y_predict)
-    # x_train_df = pd.DataFrame(X_train)
-    # x_test_df = pd.DataFrame(X_test)
-    # result7 = get_csi(x_train_df, x_test_df)
-    # psi_cal, _ = calculate_psi(y_test, y_predict)
-    # print(psi_cal)
-    # fpr, tpr = result2['plot']
-    # plt.plot(fpr, tpr, drawstyle="steps-post")
-    # plt.xlabel('recall')
-    # plt.ylabel('precision')
+#
+# # Add noisy features
+# random_state = np.random.RandomState(0)
+# n_samples, n_features = X.shape
+# X = np.concatenate([X, random_state.randn(n_samples, 200 * n_features)], axis=1)
+#
+# # Limit to the two first classes, and split into training and test
+# X_train, X_test, y_train, y_test = train_test_split(
+#     X[y < 2], y[y < 2], test_size=0.5, random_state=random_state
+# )
+#
+# lr = LogisticRegression()
+# lr.fit(X_train, y_train)
+# y_predict = lr.predict_proba(X_test)[:, 1]
+# train_predict = lr.predict_proba(X_train)[:, 1]
+# # result1 = get_auroc(y_test, y_predict)
+# # result2 = get_auprc(y_test, y_predict)
+# # result3 = get_ks(y_test, y_predict)
+# # result4 = get_gini(y_test, y_predict)
+# result6 = get_psi(train_predict, y_predict)
+# x_train_df = pd.DataFrame(X_train)
+# x_test_df = pd.DataFrame(X_test)
+# result7 = get_csi(x_train_df, x_test_df)
+# psi_cal, _ = calculate_psi(y_test, y_predict)
+# print(psi_cal)
+# fpr, tpr = result2['plot']
+# plt.plot(fpr, tpr, drawstyle="steps-post")
+# plt.xlabel('recall')
+# plt.ylabel('precision')
 
-    # x_values, (y_values, diagonal) = result4['plot']
-    # plt.stackplot(x_values, y_values, diagonal)
-    # plt.show()
+# x_values, (y_values, diagonal) = result4['plot']
+# plt.stackplot(x_values, y_values, diagonal)
+# plt.show()

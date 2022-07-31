@@ -27,9 +27,21 @@ all_test_sample_mean_shap = all_test_sample_X_shap.mean(axis=0)
 
 # 测试样例前5个
 test_example_x = test_data.iloc[:5].drop([Label_name, prediction_name], axis=1)
+
+# 获取中文属性名
+all_data = pd.read_csv("data_csv/default of credit card clients_new(Chinese).csv", encoding='gbk')
+all_data = all_data.drop(['ID', Label_name], axis=1)
+new_columns = all_data.columns.tolist()
+
+old_columns = test_data.columns.tolist()
+old_columns.remove(Label_name)
+old_columns.remove(prediction_name)
+columns_dict = dict(zip(old_columns, new_columns))
+
 # 对应的ids
 test_example_x_ids = test_example_x.index.tolist()
 
+version = 12
 
 def getDataExampleInfo(data_samples):
     """
@@ -37,7 +49,10 @@ def getDataExampleInfo(data_samples):
     :param data_samples: dataFrame格式
     :return: list格式
     """
+
     assert isinstance(data_samples, pd.DataFrame)
+    # data_samples.columns = new_columns
+    data_samples['ID'] = data_samples.index
     return data_samples.to_dict(orient='records')
 
 
@@ -87,18 +102,19 @@ def personal_analysis_info(target_id):
     rank = 1
     for feature_name in person_important_feature:
         feature_important_info = {
-            "特征排名": rank,
-            "特征名称": feature_name,
-            "特征值": show_target_feature_data.loc[feature_name, 'value'],
-            "shap值": show_target_feature_data.loc[feature_name, 'shap'],
-            "shap排名": show_target_feature_data.loc[feature_name, 'shap_rank'],
-            "特征影响度": show_target_feature_data.loc[feature_name, 'proba_change']
+            "rank": rank,
+            "name": feature_name,
+            "chinaName": columns_dict[feature_name],
+            "value": show_target_feature_data.loc[feature_name, 'value'],
+            "shap": round(show_target_feature_data.loc[feature_name, 'shap'], 4),
+            "shapRank": show_target_feature_data.loc[feature_name, 'shap_rank'],
+            "influence": show_target_feature_data.loc[feature_name, 'proba_change']
         }
         rank += 1
         important_feature_list.append(feature_important_info)
 
     return {
-        "预测概率": person_ori_proba,
+        "预测概率": round(person_ori_proba, 4),
         "用户排名": person_rank,
         "特征分析": important_feature_list
     }
@@ -115,6 +131,6 @@ person_output = {
 
 # save
 result_json = json.dumps(person_output, ensure_ascii=False)
-mpf_save_file = os.path.join(f'./output_json/v1/personalDataInfo.json')
+mpf_save_file = os.path.join(f'./output_json/v{version}/personalDataInfo.json')
 with open(mpf_save_file, 'w', encoding="utf8") as f:
     f.write(result_json)
