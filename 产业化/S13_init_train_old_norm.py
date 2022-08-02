@@ -52,19 +52,18 @@ if __name__ == '__main__':
     """
     version=5 xgb lgb 调参
     """
-    version = 7
-    dir_path = f"new_result_csv/old_norm/v{version}"
+    version = 12
+    dir_path = f"output_json/input_csv/"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
     # 初始建模
-    init_model_select = ['lr', 'mlp', 'xgb', 'lgb']
+    init_model_select = ['lr', 'mlp', 'xgb']
+    init_model_desc = {
+        'lr': '原始逻辑回归',
+        'mlp': '原始MLP',
+        'xgb': '原始XGB'
+    }
     init_model_dict = get_model_dict(init_model_select, engineer=True)
-    get_all_model_score(all_model_dict=init_model_dict, train_x=train_data_x, train_y=train_data_y, save_path=dir_path,
-                        strategy_select=1, index_desc='fit')
-
-    # 好的建模策略
-    my_best_model_seelct = ['best_xgb']
-    best_model_dict = get_model_dict(my_best_model_seelct, engineer=True)
-    get_all_model_score(all_model_dict=best_model_dict, train_x=train_data_x, train_y=train_data_y, save_path=dir_path,
-                        strategy_select=3, index_desc='calib+fit')
+    get_all_model_score(all_model_dict=init_model_dict, all_model_desc=init_model_desc, save_path=dir_path,
+                        strategy_select=1, index_desc='')

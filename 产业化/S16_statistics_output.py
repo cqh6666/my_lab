@@ -26,7 +26,7 @@ personal_value_feature_name = 'BILL_AMT1'
 group_num = 4
 num_of_show_feature = 6
 
-version = 13
+version = 16
 
 # 获取中文属性名
 all_data = pd.read_csv("data_csv/default of credit card clients_new(Chinese).csv", encoding='gbk')

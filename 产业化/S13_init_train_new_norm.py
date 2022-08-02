@@ -36,26 +36,40 @@ def get_all_model_score(all_model_dict, all_model_desc, save_path='', index_desc
 
 if __name__ == '__main__':
 
-    is_engineer = True
-    is_norm = True
-    print(is_engineer, is_norm)
     """
        old: 原始数据
        old_norm: 原始数据 + 标准化
        new: 新数据
        new_norm: 新数据 + 标准化
     """
-    train_data_x, test_data_x, train_data_y, test_data_y = get_train_test_X_y(is_engineer, is_norm)
 
     """
     version = 5 xgb lgb 调参
     version = 8
+    version = 15 调整多个版本
     """
-    version = 12
-    dir_path = f"output_json/input_csv/"
+    version = 17
+    dir_path = f"output_json/"
     if not os.path.exists(dir_path):
         os.makedirs(dir_path)
 
+    is_engineer = True
+    is_norm = True
+    print(is_engineer, is_norm)
+    train_data_x, test_data_x, train_data_y, test_data_y = get_train_test_X_y(is_engineer, is_norm)
+    # 好的建模策略
+    my_best_model_select = ['best_xgb']
+    my_best_model_desc = {
+        'best_xgb': '团队最终构建的模型'
+    }
+    best_model_dict = get_model_dict(my_best_model_select, engineer=True)
+    get_all_model_score(all_model_dict=best_model_dict, all_model_desc=my_best_model_desc, save_path=dir_path,
+                        strategy_select=3, index_desc='')
+
+    is_engineer = False
+    is_norm = False
+    print(is_engineer, is_norm)
+    train_data_x, test_data_x, train_data_y, test_data_y = get_train_test_X_y(is_engineer, is_norm)
     # 初始建模
     init_model_select = ['lr', 'mlp', 'xgb']
     init_model_desc = {
@@ -68,11 +82,3 @@ if __name__ == '__main__':
                         strategy_select=1, index_desc='')
 
 
-    # 好的建模策略
-    my_best_model_select = ['best_xgb']
-    my_best_model_desc = {
-        'best_xgb': '团队最终构建的模型'
-    }
-    best_model_dict = get_model_dict(my_best_model_select, engineer=True)
-    get_all_model_score(all_model_dict=best_model_dict, all_model_desc=my_best_model_desc, save_path=dir_path,
-                        strategy_select=3, index_desc='')

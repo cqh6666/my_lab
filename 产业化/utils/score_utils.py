@@ -31,19 +31,19 @@ def get_all_score(y_test, y_pred, train_prob):
     gini_score = get_gini(y_test, y_pred)['value']
     ks_score = get_ks(y_test, y_pred)['value']
     brier_score = get_brier_score(y_test, y_pred)
-    # psi_fixed_score = get_psi(train_prob, y_pred, mode='fixed')['value']
-    psi_quan_score = get_psi(train_prob, y_pred, mode='quantile')['value']
+    psi_fixed_score = get_psi(train_prob, y_pred, mode='fixed')['value']
+    # psi_quan_score = get_psi(train_prob, y_pred, mode='quantile')['value']
     brier_new_score = get_expected_calibration_error(y_test, y_pred)['value']
 
     all_score_dict = {
-        "AUC": auc_score,
-        "PRC": prc_score,
-        "GINI": gini_score,
-        "KS": ks_score,
-        "brier_score": brier_score,
-        # "psi_fixed": psi_fixed_score,
-        "psi_quantile": psi_quan_score,
-        "expected_calibration_error": brier_new_score
+        "AUC": round(auc_score, 4),
+        "PRC": round(prc_score, 4),
+        "GINI": round(gini_score, 4),
+        "KS": round(ks_score, 4),
+        "brier_score": round(brier_score, 4),
+        "psi_fixed": round(psi_fixed_score, 4),
+        # "psi_quantile": round(psi_quan_score, 4),
+        "expected_calibration_error": round(brier_new_score, 4)
     }
 
     return all_score_dict
@@ -165,12 +165,10 @@ def get_gini(actual, pred):
     gini_norm = gini(actual, pred) / gini(actual, actual)
     x_values, (y_values, diagonal) = get_gini_point(actual, pred)
 
-    le = np.linspace(0, 1, len(x_values))
-    le = [round(l, 4) for l in le]
     plot_df = pd.DataFrame(columns=['X', 'LC', 'LE'])
     plot_df['X'] = x_values
     plot_df['LC'] = y_values
-    plot_df['LE'] = le
+    plot_df['LE'] = x_values
 
     plot_dict = {
         "columns": plot_df.columns.tolist(),
@@ -268,16 +266,14 @@ def get_brier_score(y_test, y_pred):
 
 def get_expected_calibration_error(y_test, test_prob):
     fraction_of_positives, mean_predicted_value = calibration_curve(y_test, test_prob, n_bins=10, strategy='quantile')
-    expected_calibration_error = [np.mean(np.square(np.array(fraction_of_positives - mean_predicted_value)))]
+    expected_calibration_error = np.mean(np.square(np.array(fraction_of_positives - mean_predicted_value)))
     fraction_of_positives = [round(i, 4) for i in fraction_of_positives]
     mean_predicted_value = [round(i, 4) for i in mean_predicted_value]
 
-    le = np.linspace(0, 1, len(mean_predicted_value))
-    le = [round(l, 4) for l in le]
     plot_df = pd.DataFrame(columns=['X', 'ECE', 'LE'])
     plot_df['X'] = mean_predicted_value
     plot_df['ECE'] = fraction_of_positives
-    plot_df['LE'] = le
+    plot_df['LE'] = mean_predicted_value
 
     plot_dict = {
         "columns": plot_df.columns.tolist(),

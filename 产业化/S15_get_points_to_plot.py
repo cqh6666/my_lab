@@ -25,8 +25,6 @@ from utils.strategy_utils import train_strategy
 """
 获取所有结果信息
 """
-
-
 test_data = pd.read_csv("output_json/input_csv/pred_raw_data/test_data_output.csv")
 test_shap = pd.read_csv("output_json/input_csv/pred_raw_data/test_shap_output.csv")
 train_data = pd.read_csv("output_json/input_csv/pred_raw_data/train_data_output.csv")
@@ -44,28 +42,27 @@ train_prob, test_prob = train_strategy(clf, 3, train_data_x, train_data_y, test_
 
 all_res = get_all_info(test_data_y, test_prob, train_prob)
 
-plot_list = ['AUC','PRC','GINI','KS','PSI','ECE']
-
 # save
 result_json = json.dumps(all_res, cls=NumpyEncoder)
 version = 14
 save_path = f'./output_json/v{version}'
 if not os.path.exists(save_path):
     os.makedirs(save_path)
+
 mpf_save_file = os.path.join(save_path, f'allValuePlotsInfo.json')
 with open(mpf_save_file, 'w', encoding="utf8") as f:
     f.write(result_json)
 
 
 # plot
-# curve_list = ['auroc','auprc','gini','ks','calibration','psi']
-# save_path = f'./output_json/v{version}/png'
-# if not os.path.exists(save_path):
-#     os.makedirs(save_path)
-# curve_file_list = [os.path.join(save_path, f"{curve_list[i]}.png") for i in range(len(curve_list))]
-# plot_auroc(curve_file_list[0], all_res['AUC']['plot'][0], all_res['AUC']['plot'][1])
-# plot_auprc(curve_file_list[1], all_res['PRC']['plot'][0], all_res['PRC']['plot'][1])
-# plot_gini(curve_file_list[2], all_res['GINI']['plot'][0], all_res['GINI']['plot'][1])
-# plot_ks(curve_file_list[3], all_res['KS']['plot'][0], all_res['KS']['plot'][1])
-# plot_calibration_curve(curve_file_list[4], all_res['ECE']['plot'][0], all_res['ECE']['plot'][1])
-# plot_psi(curve_file_list[5], all_res['PSI']['plot'][0], all_res['PSI']['plot'][1])
+curve_list = ['auroc','auprc','gini','ks','calibration','psi']
+save_path = f'./output_json/v{version}/png'
+if not os.path.exists(save_path):
+    os.makedirs(save_path)
+curve_file_list = [os.path.join(save_path, f"{curve_list[i]}.png") for i in range(len(curve_list))]
+plot_auroc(curve_file_list[0], all_res['AUC']['plt_plot'][0], all_res['AUC']['plt_plot'][1])
+plot_auprc(curve_file_list[1], all_res['PRC']['plt_plot'][0], all_res['PRC']['plt_plot'][1])
+plot_gini(curve_file_list[2], all_res['GINI']['plt_plot'][0], all_res['GINI']['plt_plot'][1])
+plot_ks(curve_file_list[3], all_res['KS']['plt_plot'][0], all_res['KS']['plt_plot'][1])
+plot_calibration_curve(curve_file_list[4], all_res['ECE']['plt_plot'][0], all_res['ECE']['plt_plot'][1])
+plot_psi(curve_file_list[5], all_res['PSI']['plt_plot'][0], all_res['PSI']['plt_plot'][1])

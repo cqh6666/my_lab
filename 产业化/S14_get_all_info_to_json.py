@@ -126,7 +126,7 @@ def getModelPerformance(model_score_df):
             new_res = [
                 ["同行平均-逻辑回归", 0.7229],
                 ["同行平均-MLP", 0.77],
-                ["同行平均-XGB", 0.77715]
+                ["同行平均-XGB", 0.7772]
             ]
             temp_df = pd.concat([temp_df, pd.DataFrame(columns=["model",column], data=new_res)], axis=0)
 
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     group_num = 4
     num_of_show_feature = 6
 
-    version = 13
+    version = 17
     save_path = f'./output_json/v{version}'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
