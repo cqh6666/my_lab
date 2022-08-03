@@ -70,10 +70,7 @@ def get_output_file(model):
     :param model: 模型
     :return:
     """
-    save_path = f"./output_json/input_csv/best_model/"
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-        print("create new path", save_path)
+
 
     # 获得训练集测试集预测概率
     train_pred, test_pred = train_strategy(model)
@@ -92,11 +89,13 @@ def get_output_file(model):
     train_shap_df, test_shap_df = get_shap_value(model)
     train_shap_df['predict_prob'] = train_pred
     train_shap_df['y_true'] = train_data_y
+    train_shap_df.drop(['ID'], axis=1, inplace=True)
     train_shap_df.to_csv(os.path.join(save_path, f"train_shap_output.csv"), index=False)
 
     # 4. 测试集：X_SHAP（fit）,Y, 预测概率,（calibration+fit） 预测总分（fit）
     test_shap_df['predict_prob'] = test_pred
     test_shap_df['y_true'] = test_data_y
+    test_shap_df.drop(['ID'], axis=1, inplace=True)
     test_shap_df.to_csv(os.path.join(save_path, f"test_shap_output.csv"), index=False)
 
 
@@ -114,6 +113,11 @@ if __name__ == '__main__':
 
     random_state = 2022
     version = 2
+
+    save_path = f"./output_json/input_csv/best_model/"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+        print("create new path", save_path)
 
     # xgb.XGBClassifier(objective="binary:logistic", eval_metric="logloss", random_state=random_state, **xgb_params),
     models = ['best_xgb']

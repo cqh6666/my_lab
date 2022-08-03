@@ -71,7 +71,7 @@ def personal_analysis_info(target_id):
 
     # outper_2: 用户排名
     person_rank = '{}%'.format(
-        round((other_sample_proba_lower_than_target_select.shape[0] / test_shap.shape[0] * 100), 1))
+        (other_sample_proba_lower_than_target_select.shape[0] / test_shap.shape[0] * 100), 1)
 
     # output_3: 个人重要性排名
     show_target_feature_data = pd.DataFrame()
@@ -88,13 +88,13 @@ def personal_analysis_info(target_id):
             target_id, person_important_feature[i]]
         other_shap_lower_than_target_select = test_shap.loc[other_shap_lower_than_target_true]
         show_target_feature_data.loc[person_important_feature[i], 'shap_rank'] = '{}%'.format(
-            round((other_shap_lower_than_target_select.shape[0] / test_shap.shape[0] * 100), 1))
+            (other_shap_lower_than_target_select.shape[0] / test_shap.shape[0] * 100), 1)
 
         select_shap_diff = shap_diff_between_target_and_general[person_important_feature[i]]
         person_shap_after_del_diff = person_ori_sum_shap - select_shap_diff
         new_person_proba = 1 / (1 + np.exp(-person_shap_after_del_diff))
         show_target_feature_data.loc[person_important_feature[i], 'proba_change'] = '{}%'.format(
-            round((person_ori_proba - new_person_proba) * 100, 1))
+            (person_ori_proba - new_person_proba) * 100, 1)
 
     show_target_feature_data.to_csv(f"./output_json/input_csv/analysis_data/personal_{id_}_output.csv")
 
@@ -106,7 +106,7 @@ def personal_analysis_info(target_id):
             "name": feature_name,
             "chinaName": columns_dict[feature_name],
             "value": show_target_feature_data.loc[feature_name, 'value'],
-            "shap": round(show_target_feature_data.loc[feature_name, 'shap'], 4),
+            "shap": show_target_feature_data.loc[feature_name, 'shap'],
             "shapRank": show_target_feature_data.loc[feature_name, 'shap_rank'],
             "influence": show_target_feature_data.loc[feature_name, 'proba_change']
         }
@@ -114,7 +114,7 @@ def personal_analysis_info(target_id):
         important_feature_list.append(feature_important_info)
 
     return {
-        "预测概率": round(person_ori_proba, 4),
+        "预测概率": person_ori_proba,
         "用户排名": person_rank,
         "特征分析": important_feature_list
     }

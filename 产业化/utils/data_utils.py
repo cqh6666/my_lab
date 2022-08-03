@@ -26,7 +26,7 @@ import numpy as np
 random_state = 2022
 
 
-class NumpyEncoder(json.JSONEncoder):
+class MyEncoder(json.JSONEncoder):
     """
     ndarray to list
     """
@@ -37,7 +37,17 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def get_train_test_data(engineer=False, norm=False):
+def pretty_floats(obj):
+    if isinstance(obj, float):
+        return round(obj, 4)
+    elif isinstance(obj, dict):
+        return dict((k, pretty_floats(v)) for k, v in obj.items())
+    elif isinstance(obj, list):
+        return [pretty_floats(i) for i in obj]
+    return obj
+
+
+def get_train_test_data(engineer=True, norm=False):
     """
     :param norm: 是否进行了标准化
     :param engineer: 是否进行了特征工程
@@ -46,23 +56,23 @@ def get_train_test_data(engineer=False, norm=False):
 
     if engineer:
         if norm:
-            train_data = pd.read_csv("./data_csv_old/new_data/all_train_data_norm.csv")
-            test_data = pd.read_csv("./data_csv_old/new_data/all_test_data_norm.csv")
+            train_data = pd.read_csv("./data_csv/engineer_data/all_train_data_norm.csv")
+            test_data = pd.read_csv("./data_csv/engineer_data/all_test_data_norm.csv")
         else:
-            train_data = pd.read_csv("./data_csv_old/new_data/all_train_data.csv")
-            test_data = pd.read_csv("./data_csv_old/new_data/all_test_data.csv")
+            train_data = pd.read_csv("./data_csv/engineer_data/all_train_data.csv")
+            test_data = pd.read_csv("./data_csv/engineer_data/all_test_data.csv")
     else:
         if norm:
-            train_data = pd.read_csv("./data_csv_old/all_train_data_norm.csv")
-            test_data = pd.read_csv("./data_csv_old/ll_test_data_norm.csv")
+            train_data = pd.read_csv("./data_csv/raw_data/all_train_data_norm.csv")
+            test_data = pd.read_csv("./data_csv/raw_data/all_test_data_norm.csv")
         else:
-            train_data = pd.read_csv("./data_csv_old/all_train_data.csv")
-            test_data = pd.read_csv("./data_csv_old/all_test_data.csv")
+            train_data = pd.read_csv("./data_csv/raw_data/all_train_data.csv")
+            test_data = pd.read_csv("./data_csv/raw_data/all_test_data.csv")
 
     return train_data, test_data
 
 
-def get_train_test_X_y(engineer=False, norm=False):
+def get_train_test_X_y(engineer=True, norm=False):
     train_data, test_data = get_train_test_data(engineer, norm)
     train_data_x = train_data.drop(['default payment next month'], axis=1)
     train_data_y = train_data['default payment next month']

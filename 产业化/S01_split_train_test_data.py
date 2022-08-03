@@ -16,7 +16,8 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-all_data = pd.read_csv("data_csv/default of credit card clients_new(Chinese).csv", encoding='gbk')
+# all_data = pd.read_csv("data_csv/default of credit card clients_new.csv", encoding='gbk')
+all_data = pd.read_csv("data_csv/default of credit card clients.csv", encoding='gbk')
 random_state = 2022
 
 all_data_x = all_data.drop(['default payment next month'], axis=1)

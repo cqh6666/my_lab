@@ -30,19 +30,17 @@ def get_all_score(y_test, y_pred, train_prob):
     prc_score = get_auprc(y_test, y_pred)['value']
     gini_score = get_gini(y_test, y_pred)['value']
     ks_score = get_ks(y_test, y_pred)['value']
-    brier_score = get_brier_score(y_test, y_pred)
     psi_fixed_score = get_psi(train_prob, y_pred, mode='fixed')['value']
-    # psi_quan_score = get_psi(train_prob, y_pred, mode='quantile')['value']
+    psi_quan_score = get_psi(train_prob, y_pred, mode='quantile')['value']
     brier_new_score = get_expected_calibration_error(y_test, y_pred)['value']
 
     all_score_dict = {
         "AUC": round(auc_score, 4),
-        "PRC": round(prc_score, 4),
+        # "PRC": round(prc_score, 4),
         "GINI": round(gini_score, 4),
         "KS": round(ks_score, 4),
-        "brier_score": round(brier_score, 4),
-        "psi_fixed": round(psi_fixed_score, 4),
-        # "psi_quantile": round(psi_quan_score, 4),
+        # "psi_fixed": round(psi_fixed_score, 4),
+        "psi_quantile": round(psi_quan_score, 4),
         "expected_calibration_error": round(brier_new_score, 4)
     }
 
@@ -59,10 +57,10 @@ def get_all_info(y_test, y_pred, train_prob):
 
     all_score_dict = {
         "AUC": auc_info,
-        "PRC": prc_info,
+        # "PRC": prc_info,
         "GINI": gini_info,
         "KS": ks_info,
-        "PSI": psi_info,
+        # "PSI": psi_info,
         "ECE": calibration_info
     }
 

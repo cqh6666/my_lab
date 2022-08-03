@@ -26,18 +26,10 @@ from imblearn.combine import SMOTETomek
 import matplotlib.pyplot as plt
 
 from utils.score_utils import *
-
+from utils.data_utils import MyEncoder
 warnings.filterwarnings('ignore')
 
 
-class NumpyEncoder(json.JSONEncoder):
-    """
-    ndarray to list
-    """
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
 
 
 def get_score(_key, model):
@@ -59,7 +51,7 @@ def get_score(_key, model):
         "psi_info": psi_info,
     }
     # save
-    result_json = json.dumps(result_dict, cls=NumpyEncoder)
+    result_json = json.dumps(result_dict, cls=MyEncoder)
 
     save_path = f'./all_result_info/{_key}/'
     if not os.path.exists(save_path):
@@ -74,7 +66,7 @@ def get_csi_info():
     result_dict = {
         "csi_info": csi_info
     }
-    result_json = json.dumps(result_dict, cls=NumpyEncoder)
+    result_json = json.dumps(result_dict, cls=MyEncoder)
 
     save_path = f'./all_result_info/'
     if not os.path.exists(save_path):
