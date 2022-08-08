@@ -18,6 +18,7 @@ import os
 import pandas as pd
 import numpy as np
 
+
 def getTaskIntroductionInfo():
     """
     :return: 字符串格式
@@ -113,22 +114,17 @@ def getModelPerformance(model_score_df):
     """
     assert isinstance(model_score_df, pd.DataFrame)
 
+    # 获取所有属性名
     columns = model_score_df.columns.to_list()
+
+    # 用来保存所有指标
     scores_list = []
     for column in columns:
-
+        cur_model_score_df = model_score_df[column].dropna()
         temp_df = pd.DataFrame(data={
-            "model": model_score_df.index,
-            column: model_score_df[column]
+            "model": cur_model_score_df.index,
+            column: cur_model_score_df
         })
-
-        if column == 'AUC':
-            new_res = [
-                ["同行平均-逻辑回归", 0.7229],
-                ["同行平均-MLP", 0.77],
-                ["同行平均-XGB", 0.7772]
-            ]
-            temp_df = pd.concat([temp_df, pd.DataFrame(columns=["model",column], data=new_res)], axis=0)
 
         temp_dict = {
             "columns": temp_df.columns.to_list(),
@@ -165,7 +161,6 @@ def saveAllStatistics(train_d, test_d, origin_data_x):
 
 
 def saveModelPerformance(score_df):
-
     mpf = getModelPerformance(score_df)
     # save
     result_json = json.dumps(mpf, ensure_ascii=False)
@@ -185,12 +180,12 @@ if __name__ == '__main__':
     group_num = 4
     num_of_show_feature = 6
 
-    version = 17
+    version = 18
     save_path = f'./output_json/v{version}'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    all_score = pd.read_csv(f"output_json/input_csv/all_scores_v{version}.csv", index_col=0)
+    all_score = pd.read_csv(f"output_json/v{version}/all_scores_v{version}.csv", index_col=0)
 
     test_data = pd.read_csv("output_json/input_csv/best_model/test_data_output.csv")
     test_shap = pd.read_csv("output_json/input_csv/best_model/test_shap_output.csv")

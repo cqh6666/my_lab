@@ -55,13 +55,20 @@ def get_all_info(y_test, y_pred, train_prob):
     psi_info = get_psi(train_prob, y_pred, mode='quantile')['plt_plot']
     calibration_info = get_expected_calibration_error(y_test, y_pred)['build_plot']
 
+    # 每个点输出
+    point_x, point_y = get_expected_calibration_error(y_test, y_pred)['plt_plot']
+    point_list = []
+    for i,j in zip(point_x, point_y):
+        point_list.append([i, j])
+
     all_score_dict = {
         "AUC": auc_info,
         # "PRC": prc_info,
         "GINI": gini_info,
         "KS": ks_info,
         # "PSI": psi_info,
-        "ECE": calibration_info
+        "ECE": calibration_info,
+        "ECE_point": point_list
     }
 
     return all_score_dict
@@ -268,10 +275,9 @@ def get_expected_calibration_error(y_test, test_prob):
     fraction_of_positives = [round(i, 4) for i in fraction_of_positives]
     mean_predicted_value = [round(i, 4) for i in mean_predicted_value]
 
-    plot_df = pd.DataFrame(columns=['X', 'ECE', 'LE'])
+    plot_df = pd.DataFrame(columns=['X', 'ECE'])
     plot_df['X'] = mean_predicted_value
     plot_df['ECE'] = fraction_of_positives
-    plot_df['LE'] = mean_predicted_value
 
     plot_dict = {
         "columns": plot_df.columns.tolist(),

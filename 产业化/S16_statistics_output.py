@@ -16,13 +16,15 @@ from sklearn.model_selection import KFold
 from utils.data_utils import MyEncoder
 from utils.data_utils import pretty_floats
 
-def split_data(data_samples, select_num):
+
+def split_data(data_samples, select_num, rand_state):
     """
     随机抽样
     :param data_samples:
     :param select_num:
     :return:
     """
+    random.seed(rand_state)
     random_idx = random.sample(list(range(data_samples.shape[0])), select_num)
     return random_idx
 
@@ -38,7 +40,7 @@ def get_stat_analysis(group_data):
     person_expected_value = group_data[personal_value_feature_name] * group_data[prediction_name]
     total_expect_value = np.sum(person_expected_value.values)
 
-    num_data = [person_num, expected_positive, total_expect_value, avg_prediction]
+    num_data = [person_num, expected_positive, total_expect_value, '{}%'.format(round((avg_prediction * 100), 2))]
     des_data = ["总人数", "违约人数", "违约金额", "违约率"]
     res_df = pd.DataFrame({"num": num_data, "des": des_data})
     return res_df.to_dict(orient='records')
@@ -63,6 +65,24 @@ def get_group_stat_feature(group_data_record, important_feature):
             res_df.loc[name, "influence"] = group_data_record.loc[group_idx, f"{name}_influence"]
         res_df_list.append(res_df.to_dict(orient='records'))
     return res_df_list
+
+
+def get_stat_pie(group_data_record):
+    nums_count = group_data_record['num'].sum()
+    cur_list = []
+    for group_idx in range(group_data_record.shape[0]):
+
+        group_name = group_data_record.loc[group_idx, 'type']
+        group_num = group_data_record.loc[group_idx, 'num']
+        cur_dict = {
+            "columns": [group_name, '总数'],
+            "rows": [
+                {group_name: group_name, '总数': group_num},
+                {group_name: '其他', '总数': nums_count - group_num}
+            ]
+        }
+        cur_list.append(cur_dict)
+    return cur_list
 
 
 def get_group_all_info(group_name, group_data, group_shap_data):
@@ -108,7 +128,8 @@ def get_group_all_info(group_name, group_data, group_shap_data):
         # 每个群组用户人数
         group_data_record.loc[group_idx, 'num'] = sample_in_threshold_select.shape[0]
         # 每个群体占总人数的占比
-        group_data_record.loc[group_idx, 'radio'] = sample_in_threshold_select.shape[0] / group_data.shape[0]
+        group_data_record.loc[group_idx, 'radio'] = \
+            '{}%'.format(round((sample_in_threshold_select.shape[0] / group_data.shape[0] * 100), 2))
 
         sample_in_threshold_select_important_feature = sample_in_threshold_select.loc[:, important_feature]
         important_feature_mean = sample_in_threshold_select_important_feature.mean(axis=0)
@@ -121,13 +142,16 @@ def get_group_all_info(group_name, group_data, group_shap_data):
             group_data_record.loc[group_idx, '{}_val'.format(important_feature[j])] = important_feature_mean[j]
             group_data_record.loc[group_idx, '{}_influence'.format(important_feature[j])] = important_feature_value[j]
 
+        group_idx += 1
+
     # 保存为csv
     group_data_record.to_csv(os.path.join(save_path, f"{group_name}_statistics_output.csv"))
 
     # 测试集统计分析
     stat_analysis = get_stat_analysis(group_data)
 
-    # TODO: 客户分组 饼状图
+    # 客户分组 饼状图
+    stat_pie = get_stat_pie(group_data_record)
 
     # 客户分组 统计卡片
     stat_card = get_group_stat_card(group_data_record)
@@ -135,7 +159,7 @@ def get_group_all_info(group_name, group_data, group_shap_data):
     # 客户分组 特征分析
     stat_feature = get_group_stat_feature(group_data_record, important_feature)
 
-    return stat_analysis, stat_card, stat_feature
+    return stat_analysis, stat_pie, stat_card, stat_feature
 
 
 if __name__ == '__main__':
@@ -180,30 +204,33 @@ if __name__ == '__main__':
     group_range_dict = dict(zip(group_range_name, group_range_list))
 
     stat_analysis_list = []
+    stat_pie_list = []
     stat_card_list = []
     stat_feature_list = []
 
     cur_idx = 1
     while cur_idx <= num_of_test_data:
-        random_idx = split_data(test_data, select_num)
+        random_idx = split_data(test_data, select_num, cur_idx)
         cur_data = test_data.loc[random_idx]
         cur_shap_data = test_shap.loc[random_idx]
         cur_data.reset_index(inplace=True, drop=True)
         cur_shap_data.reset_index(inplace=True, drop=True)
-        statistic_analysis, statistic_card, statistic_feature = get_group_all_info(f"group{cur_idx}", cur_data,
-                                                                                   cur_shap_data)
+        statistic_analysis, statistic_pie, statistic_card, statistic_feature = get_group_all_info(
+            f"group{cur_idx}", cur_data, cur_shap_data)
         stat_analysis_list.append(statistic_analysis)
+        stat_pie_list.append(statistic_pie)
         stat_card_list.append(statistic_card)
         stat_feature_list.append(statistic_feature)
 
         cur_idx += 1
 
     all_group_info = {
-        "stat_analysis": stat_feature_list,
-        "stat_card": stat_card_list,
-        "stat_feature": stat_feature_list
+        "测试集统计分析": stat_analysis_list,
+        "客户分组饼状图": stat_pie_list,
+        "客户分组统计卡片": stat_card_list,
+        "客户分组特征分析": stat_feature_list
     }
     result_json = json.dumps(pretty_floats(all_group_info), ensure_ascii=False)
-    mpf_save_file = os.path.join(save_path, f'allGroupDataInfo.json')
+    mpf_save_file = os.path.join(save_path, f'CustomerGroupPortrait.json')
     with open(mpf_save_file, 'w', encoding="utf8") as f:
         f.write(result_json)

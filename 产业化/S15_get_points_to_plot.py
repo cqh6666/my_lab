@@ -61,8 +61,8 @@ if not os.path.exists(save_path):
     os.makedirs(save_path)
 curve_file_list = [os.path.join(save_path, f"{curve_list[i]}.png") for i in range(len(curve_list))]
 plot_auroc(curve_file_list[0], all_res['AUC']['plt_plot'][0], all_res['AUC']['plt_plot'][1])
-plot_auprc(curve_file_list[1], all_res['PRC']['plt_plot'][0], all_res['PRC']['plt_plot'][1])
+# plot_auprc(curve_file_list[1], all_res['PRC']['plt_plot'][0], all_res['PRC']['plt_plot'][1])
 plot_gini(curve_file_list[2], all_res['GINI']['plt_plot'][0], all_res['GINI']['plt_plot'][1])
 plot_ks(curve_file_list[3], all_res['KS']['plt_plot'][0], all_res['KS']['plt_plot'][1])
 plot_calibration_curve(curve_file_list[4], all_res['ECE']['plt_plot'][0], all_res['ECE']['plt_plot'][1])
-plot_psi(curve_file_list[5], all_res['PSI']['plt_plot'][0], all_res['PSI']['plt_plot'][1])
+# plot_psi(curve_file_list[5], all_res['PSI']['plt_plot'][0], all_res['PSI']['plt_plot'][1])

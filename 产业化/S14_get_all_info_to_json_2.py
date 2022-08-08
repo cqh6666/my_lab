@@ -18,7 +18,7 @@ import os
 
 import pandas as pd
 import numpy as np
-
+from utils.data_utils import MyEncoder
 
 def getTaskIntroductionInfo():
     """
@@ -83,22 +83,21 @@ def getDataOverviewInfo(data_samples):
 
     all_count = data_samples.shape[0]
 
-    # oupput_1: 总体违约率
-    avg_prediction = np.mean(data_samples[prediction_name])
-
     # output_2: 总体违约人数
-    expected_positive = int(data_samples.shape[0] * avg_prediction)
+    expected_positive = (data_samples[Label_name] == 1).sum()
 
-    person_expected_value = data_samples[personal_value_feature_name] * data_samples[prediction_name]
+    # oupput_1: 总体违约率
+    avg_prediction = round(expected_positive / all_count, 4)
 
     # output_3: 总体违约金额
+    person_expected_value = data_samples[personal_value_feature_name] * data_samples[Label_name]
     total_expect_value = np.sum(person_expected_value.values)
 
     return [
         {"num": all_count, "des": '总人数'},
         {"num": expected_positive, "des": '违约人数'},
-        {"num": round(total_expect_value, 4), "des": "违约金额"},
-        {"num": round(avg_prediction, 4), "des": "违约率"},
+        {"num": total_expect_value, "des": "违约金额"},
+        {"num": avg_prediction, "des": "违约率"},
     ]
 
 
@@ -109,24 +108,26 @@ def totalDataOverview(train_d, test_d):
     train_total_num = collections.Counter(trainOverview[0])
     test_total_num = collections.Counter(testOverview[0])
     all_count = train_total_num['num'] + test_total_num['num']
-
     total_num = {"num": all_count, "des": '总人数'}
 
     train_suc_num = collections.Counter(trainOverview[1])
     test_suc_num = collections.Counter(testOverview[1])
     expected_positive = train_suc_num['num'] + test_suc_num['num']
-
     suc_num = {"num": expected_positive, "des": '违约人数'}
 
     train_suc_pro = collections.Counter(trainOverview[2])
     test_suc_pro = collections.Counter(testOverview[2])
+    total_expect_value = train_suc_pro['num'] + test_suc_pro['num']
+    total_suc_pro = {"num": total_expect_value, "des": "违约金额"}
 
+    train_suc_pro = collections.Counter(trainOverview[3])
+    test_suc_pro = collections.Counter(testOverview[3])
     train_tmp = train_suc_pro['num'] * 0.7
     test_tmp = test_suc_pro['num'] * 0.3
-    avg_prediction = (train_tmp + test_tmp)
-    total_suc_pro = {"num": round(avg_prediction, 4), "des": "违约率"}
+    avg_prediction = round(train_tmp + test_tmp, 4)
+    avg_prediction_pro = {"num": avg_prediction, "des": "违约率"}
 
-    data_des = [total_num, suc_num, total_suc_pro]
+    data_des = [total_num, suc_num, total_suc_pro, avg_prediction_pro]
     return data_des
 
 
@@ -173,22 +174,17 @@ def getModelPerformance(model_score_df):
     """
     assert isinstance(model_score_df, pd.DataFrame)
 
+    # 获取所有属性名
     columns = model_score_df.columns.to_list()
+
+    # 用来保存所有指标
     scores_list = []
     for column in columns:
-
+        cur_model_score_df = model_score_df[column].dropna()
         temp_df = pd.DataFrame(data={
-            "model": model_score_df.index,
-            column: model_score_df[column]
+            "model": cur_model_score_df.index,
+            column: cur_model_score_df
         })
-
-        if column == 'AUC':
-            new_res = [
-                ["同行平均-逻辑回归", 0.7229],
-                ["同行平均-MLP", 0.77],
-                ["同行平均-XGB", 0.7772]
-            ]
-            temp_df = pd.concat([temp_df, pd.DataFrame(columns=["model", column], data=new_res)], axis=0)
 
         temp_dict = {
             "columns": temp_df.columns.to_list(),
@@ -208,17 +204,17 @@ def saveAllStatistics(train_d, test_d, origin_data_x):
     }
 
     all_res_json = {
-        "taskIntroductionInfo": getTaskIntroductionInfo(),
-        "dataIntroductionInfo": getDataIntroductionInfo(cols),
+        "项目介绍": getTaskIntroductionInfo(),
+        "数据信息": getDataIntroductionInfo(cols),
         # "dataColsInfo": getDataColsInfo(cols),
         # "dataChineseColsInfo": getDataColsInfo(new_columns),
-        "dataOverview": totalDataOverview(train_d, test_d),
-        "consumerDefaultRate": rightPieStatistics(train_d, test_d),
-        "consumerCredit": leftPieStatistics(train_d, test_d),
+        "数据集统计分析": totalDataOverview(train_d, test_d),
+        "饼状图(左边)数据": rightPieStatistics(train_d, test_d),
+        "饼状图(右边)数据": leftPieStatistics(train_d, test_d),
     }
     # save
-    result_json = json.dumps(all_res_json, ensure_ascii=False)
-    mpf_save_file = os.path.join(save_path, f'allStatisticsInfo.json')
+    result_json = json.dumps(all_res_json, cls=MyEncoder, ensure_ascii=False)
+    mpf_save_file = os.path.join(save_path, f'ProjectIntroduction.json')
     with open(mpf_save_file, 'w', encoding="utf8") as f:
         f.write(result_json)
 
@@ -245,12 +241,12 @@ if __name__ == '__main__':
     group_num = 4
     num_of_show_feature = 6
 
-    version = 17
+    version = 18
     save_path = f'./output_json/v{version}'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    all_score = pd.read_csv(f"output_json/input_csv/all_scores_v{version}.csv", index_col=0)
+    all_score = pd.read_csv(f"output_json/v{version}/all_scores_v{version}.csv", index_col=0)
 
     test_data = pd.read_csv("output_json/input_csv/best_model/test_data_output.csv")
     test_shap = pd.read_csv("output_json/input_csv/best_model/test_shap_output.csv")
@@ -265,6 +261,6 @@ if __name__ == '__main__':
     new_columns = all_data.columns.tolist()
 
     # 保存模型性能信息
-    saveModelPerformance(all_score)
+    # saveModelPerformance(all_score)
     # 保存相关统计信息
     saveAllStatistics(train_data, test_data, origin_test_data_x)
