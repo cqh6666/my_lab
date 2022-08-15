@@ -38,6 +38,10 @@ def get_init_similar_weight():
     return init_similar_weight
 
 
+def get_xgb_init_similar_weight():
+    return get_init_similar_weight()
+
+
 def get_local_xgb_para(xgb_thread_num=1, num_boost_round=50):
     """
     xgb local 参数

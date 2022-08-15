@@ -12,6 +12,7 @@
 """
 __author__ = 'cqh'
 
+import os
 import sys
 import threading
 import time
@@ -23,22 +24,21 @@ import pandas as pd
 from sklearn.decomposition import PCA
 
 from my_logger import MyLog
-from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row, get_shap_value
+from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row
 from xgb_utils_api import get_xgb_model_pkl, get_local_xgb_para, get_init_similar_weight
-from lr_utils_api import get_lr_init_similar_weight
 
 warnings.filterwarnings('ignore')
 
 
-def get_similar_rank(pca_pre_data_select):
+def get_similar_rank(pca_pre_data_select_):
     """
     选择前10%的样本，并且根据相似得到样本权重
-    :param pre_data_select:
+    :param pca_pre_data_select_: 当前所选样本
     :return:
     """
     try:
         similar_rank = pd.DataFrame(index=train_data_x.index)
-        similar_rank['distance'] = abs(pca_train_data_x - pca_pre_data_select.values).sum(axis=1)
+        similar_rank['distance'] = abs(pca_train_data_x - pca_pre_data_select_.values).sum(axis=1)
         similar_rank.sort_values('distance', inplace=True)
         patient_ids = similar_rank.index[:len_split].values
 
@@ -71,7 +71,7 @@ def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
     return predict_prob
 
 
-def personalized_modeling(test_id, pre_data_select, pca_pre_data_select):
+def personalized_modeling(test_id_, pre_data_select_, pca_pre_data_select_):
     """
     根据距离得到 某个目标测试样本对每个训练样本的距离
     test_id - patient id
@@ -79,48 +79,18 @@ def personalized_modeling(test_id, pre_data_select, pca_pre_data_select):
     pca_pre_data_select: pca降维后的目标样本
     :return: 最终的相似样本
     """
-    patient_ids, sample_ki = get_similar_rank(pca_pre_data_select)
+    patient_ids, sample_ki = get_similar_rank(pca_pre_data_select_)
 
     try:
         fit_train_x = train_data_x.loc[patient_ids]
         fit_train_y = train_data_y.loc[patient_ids]
-        predict_prob = xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki)
+        predict_prob = xgb_train(fit_train_x, fit_train_y, pre_data_select_, sample_ki)
         global_lock.acquire()
-        test_result.loc[test_id, 'prob'] = predict_prob
+        test_result.loc[test_id_, 'prob'] = predict_prob
         global_lock.release()
     except Exception as err:
         print(err)
         sys.exit(1)
-
-
-def pca_reduction(train_x, test_x, similar_weight, n_comp):
-    """
-    传入训练集和测试集，PCA降维前先得先乘以相似性度量
-    :param train_x:
-    :param test_x:
-    :param similar_weight:
-    :param n_comp:
-    :return:
-    """
-    if n_comp >= train_data_x.shape[1]:
-        n_comp = train_data_x.shape[1] - 1
-
-    my_logger.warning(f"starting pca by train_data...")
-    # pca降维
-    pca_model = PCA(n_components=n_comp, random_state=2022)
-
-    new_train_data_x = pca_model.fit_transform(train_x)
-    new_test_data_x = pca_model.transform(test_x)
-    # 转换需要 * 相似性度量
-    # new_train_data_x = pca_model.fit_transform(train_x * similar_weight)
-    # new_test_data_x = pca_model.transform(test_x * similar_weight)
-    # 转成df格式
-    pca_train_x = pd.DataFrame(data=new_train_data_x, index=train_x.index)
-    pca_test_x = pd.DataFrame(data=new_test_data_x, index=test_x.index)
-
-    my_logger.info(f"n_components: {pca_model.n_components}, svd_solver:{pca_model.svd_solver}.")
-
-    return pca_train_x, pca_test_x
 
 
 if __name__ == '__main__':
@@ -135,10 +105,9 @@ if __name__ == '__main__':
     xgb_thread_num = 1
 
     is_transfer = int(sys.argv[1])
-    n_components = int(sys.argv[2])
     # 分成5批，每一批2000，共1w个测试样本
-    start_idx = int(sys.argv[3])
-    end_idx = int(sys.argv[4])
+    start_idx = int(sys.argv[2])
+    end_idx = int(sys.argv[3])
 
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
@@ -147,16 +116,12 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
 
     """
-    version = 2  pca = 20 60 100 
-    version = 3  shap weight 100维度
-    version = 4  lr weight 100维度
-    version = 5  shap weight 1000
-    version = 6  lr weight 1000
-    version = 7  不进行 * 相似性度量会怎么样？
+    version = 1 autoEncoder 100
+
     """
-    version = 7
+    version = 1
     # ================== save file name ====================
-    test_result_file_name = f"./result/S03_pca_xgb_test_tra{is_transfer}_comp{n_components}_v{version}.csv"
+    test_result_file_name = f"./result/S05_auto_encoder_xgb_test_tra{is_transfer}_v{version}.csv"
     # =====================================================
 
     # 获取数据
@@ -169,8 +134,14 @@ if __name__ == '__main__':
     test_data_x = test_data_x.iloc[start_idx:end_idx]
     test_data_y = test_data_y.iloc[start_idx:end_idx]
 
-    # PCA降维
-    pca_train_data_x, pca_test_data_x = pca_reduction(train_data_x, test_data_x, init_similar_weight, n_components)
+    # ===========================================================
+    # autoEncoder 降维 v1 100维度
+    encoder_path = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/result/new_data/"
+    encoder_train_data_x = pd.read_csv(os.path.join(encoder_path, "train_data_v1.csv"))
+    encoder_test_data_x = pd.read_csv(os.path.join(encoder_path, "test_data_1.csv")).iloc[start_idx:end_idx]
+    my_logger.warning(f"load encoder data {encoder_train_data_x.shape}, {encoder_test_data_x.shape}")
+    # ==========================================================
+    pca_train_data_x, pca_test_data_x = encoder_train_data_x, encoder_test_data_x
 
     my_logger.warning(
         f"[params] - version:{version}, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, "

@@ -43,7 +43,8 @@ def getDataColsInfo(data_columns):
     return cur_list
 
 
-def personal_analysis_info(target_id):
+def personal_analysis_info(target_id, important_feature):
+
     target_sample_X_shap = test_shap.loc[target_id, first_X_feature_name:last_X_feature_name]
     shap_diff_between_target_and_general = target_sample_X_shap - all_test_sample_mean_shap
     abs_shap_diff = shap_diff_between_target_and_general.abs()
@@ -63,22 +64,31 @@ def personal_analysis_info(target_id):
 
     # output_3: 个人重要性排名
     show_target_feature_data = pd.DataFrame()
-
     for i in range(num_of_show_feature):
         show_target_feature_data.loc[person_important_feature[i], 'value'] = test_data.loc[
             target_id, person_important_feature[i]]
         show_target_feature_data.loc[person_important_feature[i], 'shap'] = test_shap.loc[
             target_id, person_important_feature[i]]
 
+        # 找到所有比当前客户的shap值小 的 所有客户
         other_shap_lower_than_target_true = test_shap.loc[:, person_important_feature[i]] < test_shap.loc[
             target_id, person_important_feature[i]]
         other_shap_lower_than_target_select = test_shap.loc[other_shap_lower_than_target_true]
+        # shap_rank 通过 上述统计 / 总客户
         show_target_feature_data.loc[person_important_feature[i], 'shap_rank'] = '{}%'.format(
             round((other_shap_lower_than_target_select.shape[0] / test_shap.shape[0] * 100), 2))
 
         show_target_feature_data.loc[person_important_feature[i], 'influence'] = person_important_feature_value[i]
 
-    show_target_feature_data.to_csv(f"./output_json/input_csv/analysis_data/personal_{target_id}_output.csv")
+    show_target_feature_data.to_csv(f"./output_json/v{version}/personal_{target_id}_output.csv")
+
+    # 雷达图数据
+    radar_data = []
+    for feature in important_feature:
+        # 找到所有比当前客户的shap值小 的 所有客户
+        shap_feature_lower = abs_shap_diff[abs_shap_diff < abs_shap_diff[feature]].size
+        shap_feature_lower_rank = round(shap_feature_lower / abs_shap_diff.size * 100, 2)
+        radar_data.append(shap_feature_lower_rank)
 
     important_feature_list = []
     rank = 1
@@ -99,6 +109,7 @@ def personal_analysis_info(target_id):
         "预测概率": person_ori_proba,
         "违约概率排名": person_rank,
         "特征分析": important_feature_list,
+        "雷达分析": radar_data
     }
 
 
@@ -127,8 +138,14 @@ def get_all_ids_info():
 
     stat_analysis = []
     stat_feature = []
+    stat_radar = []
+    # 最重要的k个特征
+    mean_train_shap = train_shap.loc[:, first_X_feature_name:last_X_feature_name].abs().mean(axis=0)
+    mean_train_shap.sort_values(ascending=False, inplace=True)
+    important_feature = mean_train_shap.index.tolist()[:num_of_radar_feature]
+
     for test_id in test_example_x_ids:
-        cur_info = personal_analysis_info(test_id)
+        cur_info = personal_analysis_info(test_id, important_feature)
 
         # 统计分析
         num_list = [cur_info['预测概率'], cur_info['违约概率排名'], belongToGroup(cur_info['预测概率'])]
@@ -137,6 +154,17 @@ def get_all_ids_info():
 
         # 特征分析
         stat_feature.append(cur_info['特征分析'])
+
+        # 雷达分析
+        radar_data = cur_info['雷达分析']
+        radar_df = pd.DataFrame()
+        radar_df.loc[test_id, 'test_id'] = test_id
+        for feature, radar in zip(important_feature, radar_data):
+            radar_df.loc[test_id, columns_dict[feature]] = radar
+        stat_radar.append({
+            "columns": radar_df.columns.tolist(),
+            "rows": radar_df.to_dict(orient='records')
+        })
 
     dataExample, columns = getDataExampleInfo(test_example_x)
     person_output = {
@@ -147,6 +175,7 @@ def get_all_ids_info():
     return {
         "统计分析": stat_analysis,
         "特征分析": stat_feature,
+        "雷达分析": stat_radar,
         "客户样例": person_output
     }
 
@@ -154,6 +183,7 @@ def get_all_ids_info():
 if __name__ == '__main__':
     test_data = pd.read_csv("output_json/input_csv/best_model/test_data_output.csv")
     test_shap = pd.read_csv("output_json/input_csv/best_model/test_shap_output.csv")
+    train_shap = pd.read_csv("output_json/input_csv/best_model/train_shap_output.csv")
 
     first_X_feature_name = 'LIMIT_BAL'
     last_X_feature_name = 'PAY_AMT_CHANGE_3/BILL_AMT_CHANGE_3'
@@ -162,7 +192,7 @@ if __name__ == '__main__':
     prediction_name = 'predict_prob'
     personal_value_feature_name = 'BILL_AMT1'
     num_of_show_feature = 6
-
+    num_of_radar_feature = 5
     all_test_sample_X_shap = test_shap.loc[:, first_X_feature_name:last_X_feature_name]
     all_test_sample_mean_shap = all_test_sample_X_shap.mean(axis=0)
 
@@ -173,9 +203,7 @@ if __name__ == '__main__':
     column_csv = pd.read_csv("data_csv/feature_name.csv", encoding='utf-8')
     columns_dict = dict(zip(column_csv['特征名称'], column_csv['特征解释']))
 
-
-
-    version = 18
+    version = 19
     # save
     result_json = json.dumps(pretty_floats(get_all_ids_info()), ensure_ascii=False)
     mpf_save_file = os.path.join(f'./output_json/v{version}/CustomerRiskAssessment.json')

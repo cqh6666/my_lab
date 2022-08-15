@@ -17,20 +17,16 @@ import pandas as pd
 
 # S03_pca_lr_test_tra1_comp4000_v1.csv
 step = 3
-version = 2
-test_result_file_name = f"./result/S03_pca_lr_test_v{version}.csv"
+version = "6_2"
+test_result_file_name = f"./result/S03_pca_lr_auc_result_test_v{version}.csv"
 
-pca_comps = [20, 60, 100]
-spe_comps = [100]
+pca_comps = [1000]
 
 result_df = pd.DataFrame(index=pca_comps, columns=['transfer', 'no_transfer'])
 for comp in pca_comps:
+    # S03_pca_lr_test_tra0_comp100_v6.csv
     res = pd.read_csv(f"./result/S03_pca_lr_test_tra1_comp{comp}_v{version}.csv")
     no_res = pd.read_csv(f"./result/S03_pca_lr_test_tra0_comp{comp}_v{version}.csv")
-
-    if comp in spe_comps:
-        res = res.iloc[:10001]
-        no_res = no_res.iloc[:10001]
 
     score = roc_auc_score(res['real'], res['prob'])
     score2 = roc_auc_score(no_res['real'], no_res['prob'])

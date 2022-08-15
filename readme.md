@@ -33,3 +33,8 @@ ll -rt   降序(推荐，最后一行是最新的文件)
 ll -t
 - 按大小
 ll -Sh
+
+
+### 后台执行
+nohup sh /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/code_xgb/S05_auto_sbatch.sh >> /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/code_xgb/S05_nohup.log &
+nohup sh /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/code_lr/S05_auto_sbatch_LR.sh >> /panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/code_lr/S05_nohup.log &

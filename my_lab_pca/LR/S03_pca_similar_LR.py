@@ -26,6 +26,7 @@ from sklearn.linear_model import LogisticRegression
 from utils_api import covert_time_format, get_train_test_x_y, save_to_csv_by_row, get_shap_value
 from lr_utils_api import get_transfer_weight, get_init_similar_weight
 from my_logger import MyLog
+from xgb_utils_api import get_xgb_init_similar_weight
 
 warnings.filterwarnings('ignore')
 
@@ -98,8 +99,10 @@ def pca_reduction(train_x, test_x, similar_weight, n_comp):
     # pca降维
     pca_model = PCA(n_components=n_comp, random_state=2022)
     # 转换需要 * 相似性度量
-    new_train_data_x = pca_model.fit_transform(train_x * similar_weight)
-    new_test_data_x = pca_model.transform(test_x * similar_weight)
+    new_train_data_x = pca_model.fit_transform(train_x)
+    new_test_data_x = pca_model.transform(test_x)
+    # new_train_data_x = pca_model.fit_transform(train_x * similar_weight)
+    # new_test_data_x = pca_model.transform(test_x * similar_weight)
     # 转成df格式
     pca_train_x = pd.DataFrame(data=new_train_data_x, index=train_x.index)
     pca_test_x = pd.DataFrame(data=new_test_data_x, index=test_x.index)
@@ -120,7 +123,7 @@ if __name__ == '__main__':
     select = 10
 
     is_transfer = int(sys.argv[1])  # 0 1
-    n_components = int(sys.argv[2])  # 500 1000 2000 3000 3000 4000
+    n_components = int(sys.argv[2])  # 100
     start_idx = int(sys.argv[3])
     end_idx = int(sys.argv[4])
 
@@ -128,13 +131,16 @@ if __name__ == '__main__':
 
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
     global_feature_weight = get_transfer_weight(is_transfer)
-    init_similar_weight = get_shap_value()
-
+    init_similar_weight = get_init_similar_weight()
     """
     version=3 pca - 20 60 100
-    version=4 shap weight
+    version=5 shap weight
+    version=6 xgb weight
+    version=5_2 shap weight dim=1000
+    version=6_2 xgb weight dim=1000
+    version=7 不进行 * 相似性度量会怎么样？
     """
-    version = 4
+    version = 7
     # ================== save file name ====================
     test_result_file_name = f"./result/S03_pca_lr_test_tra{is_transfer}_comp{n_components}_v{version}.csv"
     # =====================================================
@@ -154,7 +160,7 @@ if __name__ == '__main__':
 
     my_logger.warning("load data - train_data:{}, test_data:{}".format(train_data_x.shape, test_data_x.shape))
     my_logger.warning(
-        f"[params] - model_select:LR, pool_nums:{pool_nums}, is_transfer:{is_transfer}, max_iter:{local_lr_iter}, select:{select}, test_idx:[{start_idx}, {end_idx}]")
+        f"[params] - model_select:LR, pool_nums:{pool_nums}, is_transfer:{is_transfer}, max_iter:{local_lr_iter}, select:{select}, version:{version}, test_idx:[{start_idx}, {end_idx}]")
 
     len_split = int(select_ratio * train_data_x.shape[0])
     test_id_list = pca_test_data_x.index.values

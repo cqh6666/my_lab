@@ -1,8 +1,8 @@
-#!/bin/sh]
+#!/bin/sh
 final=10000
 step=2000
-
-for comp in {100}
+comps=(100 500 1000)
+for comp in ${comps[@]}
 do
   let start=0
   let end=$step

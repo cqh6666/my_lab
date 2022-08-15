@@ -25,7 +25,7 @@ from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row
 from my_logger import MyLog
 from xgb_utils_api import get_xgb_model_pkl, get_local_xgb_para
 from utils_api import get_shap_value
-
+from lr_utils_api import get_lr_init_similar_weight
 warnings.filterwarnings('ignore')
 
 
@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
     params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
     xgb_model = get_xgb_model_pkl(is_transfer)
-    init_similar_weight = get_shap_value()
+    init_similar_weight = get_lr_init_similar_weight()
 
     """
     version=1 xgb_boost_num=50
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     version=5 shap_weight
 
     """
-    version = 5
+    version = 6
     # ================== save file name ====================
     test_result_file_name = f"./result/S02_xgb_test_tra{is_transfer}_boost{xgb_boost_num}_select{select}_v{version}.csv"
     # =====================================================

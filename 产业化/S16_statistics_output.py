@@ -52,13 +52,13 @@ def get_group_stat_card(group_data_record):
     return res_df.to_dict(orient='records')
 
 
-def get_group_stat_feature(group_data_record, important_feature):
+def get_group_stat_feature(group_data_record, group_important_feature_list):
     # 多个客群
     res_df_list = []
-    for group_idx in range(group_data_record.shape[0]):
+    for group_idx, group_important_feature in zip(range(group_data_record.shape[0]), group_important_feature_list):
         # 单个客群
         res_df = pd.DataFrame()
-        for name in important_feature:
+        for name in group_important_feature:
             res_df.loc[name, "name"] = name
             res_df.loc[name, "chinaName"] = columns_dict[name]
             res_df.loc[name, "val"] = group_data_record.loc[group_idx, f"{name}_val"]
@@ -71,7 +71,6 @@ def get_stat_pie(group_data_record):
     nums_count = group_data_record['num'].sum()
     cur_list = []
     for group_idx in range(group_data_record.shape[0]):
-
         group_name = group_data_record.loc[group_idx, 'type']
         group_num = group_data_record.loc[group_idx, 'num']
         cur_dict = {
@@ -85,6 +84,13 @@ def get_stat_pie(group_data_record):
     return cur_list
 
 
+def get_group_stat_radar(group_radar_record):
+    return {
+        "columns": group_radar_record.columns.tolist(),
+        "rows": group_radar_record.to_dict(orient='records')
+    }
+
+
 def get_group_all_info(group_name, group_data, group_shap_data):
     """
     客户群体画像
@@ -95,11 +101,11 @@ def get_group_all_info(group_name, group_data, group_shap_data):
     """
     # calculate data in total test set
 
-    # 最重要的6个特征
+    # 最重要的k个特征
     mean_train_shap = train_shap.loc[:, first_X_feature_name:last_X_feature_name].abs().mean(axis=0)
     mean_train_shap.sort_values(ascending=False, inplace=True)
-    important_feature = mean_train_shap.index.tolist()[:num_of_show_feature]
-    important_feature_value = mean_train_shap[important_feature].tolist()
+    important_feature = mean_train_shap.index.tolist()[:num_of_radar_feature]
+    # important_feature_value = mean_train_shap[important_feature].tolist()
 
     """
     num 客户人数
@@ -109,6 +115,10 @@ def get_group_all_info(group_name, group_data, group_shap_data):
     group_idx = 0
     # output_4: 客户群体画像
     group_data_record = pd.DataFrame()
+    group_radar_record = pd.DataFrame()
+
+    # 客群重要特征列表
+    group_important_feature_list = []
     # 遍历群组字典,key代表名字,value代表概率范围
     for prob_name, prob_range in group_range_dict.items():
 
@@ -121,8 +131,9 @@ def get_group_all_info(group_name, group_data, group_shap_data):
             int(low_threshold * 100), int(high_threshold * 100)
         )
 
-        sample_in_threshold_true = (group_data.loc[:, prediction_name] > low_threshold) & (
-                group_data.loc[:, prediction_name] <= high_threshold)
+        # 每个群组所有客户的原始数据
+        sample_in_threshold_true = (group_data.loc[:, prediction_name] > low_threshold) \
+                                 & (group_data.loc[:, prediction_name] <= high_threshold)
         sample_in_threshold_select = group_data.loc[sample_in_threshold_true]
 
         # 每个群组用户人数
@@ -131,16 +142,38 @@ def get_group_all_info(group_name, group_data, group_shap_data):
         group_data_record.loc[group_idx, 'radio'] = \
             '{}%'.format(round((sample_in_threshold_select.shape[0] / group_data.shape[0] * 100), 2))
 
-        sample_in_threshold_select_important_feature = sample_in_threshold_select.loc[:, important_feature]
-        important_feature_mean = sample_in_threshold_select_important_feature.mean(axis=0)
-
+        # 每个客群所有客户的shap值
         shap_in_threshold_select = group_shap_data.loc[sample_in_threshold_true]
         shap_in_threshold_select.reset_index(drop=True, inplace=True)
 
+        # 计算出每个群组top 6个重要特征
+        mean_group_shap = shap_in_threshold_select.loc[:, first_X_feature_name:last_X_feature_name].abs().mean(axis=0)
+        mean_group_shap.sort_values(ascending=False, inplace=True)
+        group_important_feature = mean_group_shap.index.tolist()[:num_of_show_feature]
+        group_important_feature_value = mean_group_shap[group_important_feature].tolist()
+
+        sample_in_threshold_select_important_feature = sample_in_threshold_select.loc[:, group_important_feature]
+        important_feature_mean = sample_in_threshold_select_important_feature.mean(axis=0)
+
+        # 存入各群组重要特征列表
+        group_important_feature_list.append(group_important_feature)
+
         # 对于每个群组的重要特征处理
         for j in range(num_of_show_feature):
-            group_data_record.loc[group_idx, '{}_val'.format(important_feature[j])] = important_feature_mean[j]
-            group_data_record.loc[group_idx, '{}_influence'.format(important_feature[j])] = important_feature_value[j]
+            group_data_record.loc[group_idx, '{}_val'.format(group_important_feature[j])] = important_feature_mean[j]
+            group_data_record.loc[group_idx, '{}_influence'.format(group_important_feature[j])] = group_important_feature_value[j]
+
+        # 雷达图数据分析
+        # 根据训练集分析出最重要的k个特征 如上 important_feature
+        # 分析每个客群这个特征的shap排名
+        group_radar_record.loc[group_idx, 'name'] = prob_name[:-2]
+        for feature in important_feature:
+            # shap特征排名
+            shap_feature_lower = mean_group_shap[mean_group_shap < mean_group_shap[feature]].size
+            shap_feature_lower_rank = round(shap_feature_lower / mean_group_shap.size * 100, 2)
+            # 影响度排名
+            # shap_feature_lower = mean_group_shap[feature] / mean_group_shap.sum() * 100
+            group_radar_record.loc[group_idx, columns_dict[feature]] = shap_feature_lower_rank
 
         group_idx += 1
 
@@ -157,9 +190,12 @@ def get_group_all_info(group_name, group_data, group_shap_data):
     stat_card = get_group_stat_card(group_data_record)
 
     # 客户分组 特征分析
-    stat_feature = get_group_stat_feature(group_data_record, important_feature)
+    stat_feature = get_group_stat_feature(group_data_record, group_important_feature_list)
 
-    return stat_analysis, stat_pie, stat_card, stat_feature
+    # 客群雷达图
+    stat_radar = get_group_stat_radar(group_radar_record)
+
+    return stat_analysis, stat_pie, stat_card, stat_feature, stat_radar
 
 
 if __name__ == '__main__':
@@ -177,8 +213,8 @@ if __name__ == '__main__':
 
     # top k个重要特征
     num_of_show_feature = 6
-
-    version = 18
+    num_of_radar_feature = 5
+    version = 19
 
     save_path = f"./output_json/v{version}"
     if not os.path.exists(save_path):
@@ -207,6 +243,7 @@ if __name__ == '__main__':
     stat_pie_list = []
     stat_card_list = []
     stat_feature_list = []
+    stat_radar_list = []
 
     cur_idx = 1
     while cur_idx <= num_of_test_data:
@@ -215,22 +252,24 @@ if __name__ == '__main__':
         cur_shap_data = test_shap.loc[random_idx]
         cur_data.reset_index(inplace=True, drop=True)
         cur_shap_data.reset_index(inplace=True, drop=True)
-        statistic_analysis, statistic_pie, statistic_card, statistic_feature = get_group_all_info(
+        statistic_analysis, statistic_pie, statistic_card, statistic_feature, statistic_radar = get_group_all_info(
             f"group{cur_idx}", cur_data, cur_shap_data)
+
         stat_analysis_list.append(statistic_analysis)
         stat_pie_list.append(statistic_pie)
         stat_card_list.append(statistic_card)
         stat_feature_list.append(statistic_feature)
-
+        stat_radar_list.append(statistic_radar)
         cur_idx += 1
 
     all_group_info = {
         "测试集统计分析": stat_analysis_list,
         "客户分组饼状图": stat_pie_list,
         "客户分组统计卡片": stat_card_list,
-        "客户分组特征分析": stat_feature_list
+        "客户分组特征分析": stat_feature_list,
+        "客户分组雷达图": stat_radar_list
     }
-    result_json = json.dumps(pretty_floats(all_group_info), ensure_ascii=False)
+    result_json = json.dumps(pretty_floats(all_group_info), cls=MyEncoder, ensure_ascii=False)
     mpf_save_file = os.path.join(save_path, f'CustomerGroupPortrait.json')
     with open(mpf_save_file, 'w', encoding="utf8") as f:
         f.write(result_json)
