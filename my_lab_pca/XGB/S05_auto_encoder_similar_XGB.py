@@ -51,12 +51,12 @@ def get_similar_rank(pca_pre_data_select_):
     return patient_ids, sample_ki
 
 
-def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
+def xgb_train(fit_train_x, fit_train_y, pre_data_select_, sample_ki):
     """
     xgb训练模型，用原始数据建模
     :param fit_train_x:
     :param fit_train_y:
-    :param pre_data_select:
+    :param pre_data_select_:
     :param sample_ki:
     :return:
     """
@@ -66,7 +66,7 @@ def xgb_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
                           num_boost_round=num_boost_round,
                           verbose_eval=False,
                           xgb_model=xgb_model)
-    d_test_local = xgb.DMatrix(pre_data_select)
+    d_test_local = xgb.DMatrix(pre_data_select_)
     predict_prob = xgb_local.predict(d_test_local)[0]
     return predict_prob
 
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     # 分成5批，每一批2000，共1w个测试样本
     start_idx = int(sys.argv[2])
     end_idx = int(sys.argv[3])
-
+    dimension = int(sys.argv[4])
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
     params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
@@ -117,11 +117,12 @@ if __name__ == '__main__':
 
     """
     version = 1 autoEncoder 100
-
+    version = 2 50 20 100
+    version = 3 去掉 index
     """
-    version = 1
+    version = 3
     # ================== save file name ====================
-    test_result_file_name = f"./result/S05_auto_encoder_xgb_test_tra{is_transfer}_v{version}.csv"
+    test_result_file_name = f"./result/S05_auto_encoder_xgb_test_tra{is_transfer}_dim{dimension}_v{version}.csv"
     # =====================================================
 
     # 获取数据
@@ -137,8 +138,8 @@ if __name__ == '__main__':
     # ===========================================================
     # autoEncoder 降维 v1 100维度
     encoder_path = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/result/new_data/"
-    encoder_train_data_x = pd.read_csv(os.path.join(encoder_path, "train_data_v1.csv"))
-    encoder_test_data_x = pd.read_csv(os.path.join(encoder_path, "test_data_1.csv")).iloc[start_idx:end_idx]
+    encoder_train_data_x = pd.read_csv(os.path.join(encoder_path, f"train_data_dim{dimension}_v2.csv"), index_col=0)
+    encoder_test_data_x = pd.read_csv(os.path.join(encoder_path, f"test_data_dim{dimension}_v2.csv"), index_col=0).iloc[start_idx:end_idx]
     my_logger.warning(f"load encoder data {encoder_train_data_x.shape}, {encoder_test_data_x.shape}")
     # ==========================================================
     pca_train_data_x, pca_test_data_x = encoder_train_data_x, encoder_test_data_x

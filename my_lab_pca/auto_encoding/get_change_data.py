@@ -26,7 +26,7 @@ import torch.nn.functional as F
 from torch import nn, optim
 from torch.autograd import Variable
 
-from utils_api import get_train_test_data
+from utils_api import get_train_test_data, get_shap_value, get_train_test_x_y
 
 
 def load_data(all_data):
@@ -37,7 +37,7 @@ def load_data(all_data):
     """
     # read in from csv
     # replace nan with -99
-    data_x = all_data.drop(drop_feature, axis=1)
+    data_x = all_data.drop(drop_feature, axis=1) * init_similar_weight
     data_y = all_data[label_feature]
     data_x = data_x.values.reshape(-1, data_x.shape[1]).astype('float32')
     # stadardize values
@@ -158,7 +158,7 @@ def weights_init_uniform_rule(m):
         m.bias.data.fill_(0)
 
 
-def train(epoch):
+def train(epoch_):
     model.train()
     train_loss = 0
     for batch_idx, data in enumerate(trainloader):
@@ -174,9 +174,9 @@ def train(epoch):
     #                epoch, batch_idx * len(data), len(trainloader.dataset),
     #                       100. * batch_idx / len(trainloader),
     #                       loss.item() / len(data)))
-    if epoch % log_interval == 0:
+    if epoch_ % log_interval == 0:
         print('====> Epoch: {} Average loss: {:.4f}'.format(
-            epoch, train_loss / len(trainloader.dataset)))
+            epoch_, train_loss / len(trainloader.dataset)))
         # train_losses.append(train_loss / len(trainloader.dataset))
 
 
@@ -212,16 +212,10 @@ if __name__ == '__main__':
     save_path = f"./result/new_data"
     """
     version=1 dim=100
-    version=2 dim=50
-    version=3 dim=200
+    version=2 dim=20 50 100
     """
     dimension = int(sys.argv[1])
-    if dimension == 50:
-        version = 2
-    elif dimension == 200:
-        version = 3
-    else:
-        version = 999
+    version = sys.argv[2]
     # ======================================================
     train_data_file = os.path.join(save_path, f"train_data_dim{dimension}_v{version}.csv")
     test_data_file = os.path.join(save_path, f"test_data_dim{dimension}_v{version}.csv")
@@ -235,6 +229,8 @@ if __name__ == '__main__':
     # train_data = load_data(train_data_path)
     # test_data = load_data(test_data_path)
 
+    init_similar_weight = get_shap_value()
+
     # 建立数据
     train_data_set = DataBuilder(train_data)
     trainloader = DataLoader(dataset=train_data_set, batch_size=1024)
@@ -246,8 +242,7 @@ if __name__ == '__main__':
     H = 50
     H2 = 12
     # 降维的维度
-    n_dimension = 100
-    model = Autoencoder(D_in, H, H2, latent_dim=n_dimension).to(device)
+    model = Autoencoder(D_in, H, H2, latent_dim=dimension).to(device)
     # model.apply(weights_init_uniform_rule)
     # sae.fc4.register_forward_hook(get_activation('fc4'))
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
@@ -269,4 +264,4 @@ if __name__ == '__main__':
     test_df = pd.DataFrame(test_result.numpy())
     test_df.to_csv(test_data_file)
 
-    print("save success!")
+    print("save success!", train_df.shape, test_df.shape)

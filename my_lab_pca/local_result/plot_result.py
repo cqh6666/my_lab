@@ -16,9 +16,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 model = "XGB"
-transfer_flag = "no_transfer"
-csv_file_name = f"./csv/S04_{model}.csv"
-png_file_name = f"S04_{model}_res_v2.png"
+csv_file_name = f"./csv/S06_pca_psm_{model}.csv"
+png_file_name = f"S06_pca_psm_{model}"
 png_save_path = "./png/" + png_file_name
 
 result = pd.read_csv(csv_file_name, index_col=0)

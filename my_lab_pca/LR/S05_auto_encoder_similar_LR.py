@@ -51,10 +51,10 @@ def get_similar_rank(target_pre_data_select):
     return patient_ids, sample_ki
 
 
-def lr_train(fit_train_x, fit_train_y, pre_data_select, sample_ki):
+def lr_train(fit_train_x, fit_train_y, pre_data_select_, sample_ki):
     lr_local = LogisticRegression(solver="liblinear", n_jobs=1, max_iter=local_lr_iter)
     lr_local.fit(fit_train_x, fit_train_y, sample_ki)
-    predict_prob = lr_local.predict_proba(pre_data_select)[0][1]
+    predict_prob = lr_local.predict_proba(pre_data_select_)[0][1]
     return predict_prob
 
 
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     is_transfer = int(sys.argv[1])  # 0 1
     start_idx = int(sys.argv[2])
     end_idx = int(sys.argv[3])
-
+    dimension = int(sys.argv[4])
     select_ratio = select * 0.01
 
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
@@ -112,10 +112,12 @@ if __name__ == '__main__':
     init_similar_weight = get_init_similar_weight()
     """
     version=1 autoEncoder 100
+    version=2 20 50 100
+    version=3 去掉index
     """
-    version = 1
+    version = 3
     # ================== save file name ====================
-    test_result_file_name = f"./result/S05_auto_encoder_lr_test_tra{is_transfer}_v{version}.csv"
+    test_result_file_name = f"./result/S05_auto_encoder_lr_test_tra{is_transfer}_dim{dimension}_v{version}.csv"
     # =====================================================
 
     # 获取数据
@@ -131,8 +133,9 @@ if __name__ == '__main__':
     # ===========================================================
     # autoEncoder 降维 v1 100维度
     encoder_path = "/panfs/pfs.local/work/liu/xzhang_sta/chenqinhai/code_pca/result/new_data/"
-    encoder_train_data_x = pd.read_csv(os.path.join(encoder_path, "train_data_v1.csv"))
-    encoder_test_data_x = pd.read_csv(os.path.join(encoder_path, "test_data_1.csv")).iloc[start_idx:end_idx]
+    encoder_train_data_x = pd.read_csv(os.path.join(encoder_path, f"train_data_dim{dimension}_v2.csv"))
+    encoder_test_data_x = pd.read_csv(os.path.join(encoder_path, f"test_data_dim{dimension}_v2.csv")).iloc[
+                          start_idx:end_idx]
     my_logger.warning(f"load encoder data {encoder_train_data_x.shape}, {encoder_test_data_x.shape}")
     # ==========================================================
     pca_train_data_x, pca_test_data_x = encoder_train_data_x, encoder_test_data_x

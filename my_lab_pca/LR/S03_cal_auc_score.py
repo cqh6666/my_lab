@@ -17,12 +17,12 @@ import pandas as pd
 
 # S03_pca_lr_test_tra1_comp4000_v1.csv
 step = 3
-version = "6_2"
+version = 7
 test_result_file_name = f"./result/S03_pca_lr_auc_result_test_v{version}.csv"
 
-pca_comps = [1000]
+pca_comps = [100, 500, 1000]
 
-result_df = pd.DataFrame(index=pca_comps, columns=['transfer', 'no_transfer'])
+result_df = pd.DataFrame(columns=['transfer', 'no_transfer'])
 for comp in pca_comps:
     # S03_pca_lr_test_tra0_comp100_v6.csv
     res = pd.read_csv(f"./result/S03_pca_lr_test_tra1_comp{comp}_v{version}.csv")
