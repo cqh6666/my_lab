@@ -2,7 +2,7 @@
 """
 -------------------------------------------------
    File Name:     pca_similar
-   Description:   没做PCA处理，使用初始相似性度量匹配相似样本，进行计算AUC
+   Description:    测试集 测试XGB个性化建模
    Author:        cqh
    date:          2022/7/5 10:07
 -------------------------------------------------
@@ -12,20 +12,19 @@
 """
 __author__ = 'cqh'
 
+import os
 import sys
-import threading
+from threading import Lock
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-import xgboost as xgb
-
 import pandas as pd
 from sklearn.decomposition import PCA
 
+import xgboost as xgb
+from utils_api import covert_time_format, get_train_test_x_y, save_to_csv_by_row
+from xgb_utils_api import get_init_similar_weight, get_local_xgb_para, get_xgb_model_pkl
 from my_logger import MyLog
-from utils_api import get_train_test_x_y, covert_time_format, save_to_csv_by_row, get_shap_value
-from xgb_utils_api import get_xgb_model_pkl, get_local_xgb_para, get_init_similar_weight
-from lr_utils_api import get_lr_init_similar_weight
 
 warnings.filterwarnings('ignore')
 
@@ -53,11 +52,7 @@ def get_similar_rank(target_pre_data_select):
 
 def xgb_train(fit_train_x, fit_train_y, pre_data_select_, sample_ki):
     """
-    xgb训练模型，用原始数据建模
-    :param fit_train_x:
-    :param fit_train_y:
-    :param pre_data_select_:
-    :param sample_ki:
+    xgb训练模型，得到预测概率
     :return:
     """
     d_train_local = xgb.DMatrix(fit_train_x, label=fit_train_y, weight=sample_ki)
@@ -71,21 +66,31 @@ def xgb_train(fit_train_x, fit_train_y, pre_data_select_, sample_ki):
     return predict_prob
 
 
-def personalized_modeling(test_id_, pre_data_select_, pca_pre_data_select_):
+def personalized_modeling(patient_id, pre_data_select_x, pca_pre_data_select_x):
     """
-    根据距离得到 某个目标测试样本对每个训练样本的距离
-    test_id - patient id
-    pre_data_select - 目标原始样本
-    pca_pre_data_select: pca降维后的目标样本
-    :return: 最终的相似样本
+    个性化建模 最终 得到 目标样本的预测概率
+    :param pre_data_select_x: 原始测试样本
+    :param pca_pre_data_select_x:  处理后的测试样本
+    :param patient_id: 目标患者的索引
+    :return:
     """
-    patient_ids, sample_ki = get_similar_rank(pca_pre_data_select_)
+    # 找到相似患者ID
+    patient_ids, sample_ki = get_similar_rank(pca_pre_data_select_x)
+
+    # 筛选出的相似患者 原始数据
+    x_train = train_data_x.loc[patient_ids]
+    y_train = train_data_y.loc[patient_ids]
+
+    # =========================== XGB专属处理 ================================#
+    fit_train_x = x_train
+    fit_train_y = y_train
+    fit_test_x = pre_data_select_x
+    predict_prob = xgb_train(fit_train_x, fit_train_y, fit_test_x, sample_ki)
+    # =========================== XGB专属处理 ================================#
+
     try:
-        fit_train_x = train_data_x.loc[patient_ids]
-        fit_train_y = train_data_y.loc[patient_ids]
-        predict_prob = xgb_train(fit_train_x, fit_train_y, pre_data_select_, sample_ki)
         global_lock.acquire()
-        test_result.loc[test_id_, 'prob'] = predict_prob
+        test_result.loc[patient_id, 'prob'] = predict_prob
         global_lock.release()
     except Exception as err:
         print(err)
@@ -93,14 +98,6 @@ def personalized_modeling(test_id_, pre_data_select_, pca_pre_data_select_):
 
 
 def pca_reduction(train_x, test_x, similar_weight, n_comp):
-    """
-    传入训练集和测试集，PCA降维前先得先乘以相似性度量
-    :param train_x:
-    :param test_x:
-    :param similar_weight:
-    :param n_comp:
-    :return:
-    """
     if n_comp >= train_x.shape[1]:
         n_comp = train_x.shape[1] - 1
 
@@ -123,37 +120,49 @@ if __name__ == '__main__':
 
     my_logger = MyLog().logger
 
-    pool_nums = 30
-    select_ratio = 0.1
-    m_sample_weight = 0.01
-
-    xgb_boost_num = 50
-    xgb_thread_num = 1
-
     is_transfer = int(sys.argv[1])
-    n_components = int(sys.argv[2])
-    # 分成5批，每一批2000，共1w个测试样本
+    learned_metric_iteration = int(sys.argv[2])
     start_idx = int(sys.argv[3])
     end_idx = int(sys.argv[4])
 
     transfer_flag = "transfer" if is_transfer == 1 else "no_transfer"
 
+    m_sample_weight = 0.01
+    select = 10
+    select_ratio = select * 0.01
+    n_components = 100
+    pool_nums = 30
+
+    PSM_SAVE_PATH = f'./result/S06_temp/psm_{transfer_flag}'
+    TEST_RESULT_SAVE_PATH = f"./result/S06_temp/test_{transfer_flag}"
+    if not os.path.exists(PSM_SAVE_PATH):
+        os.makedirs(PSM_SAVE_PATH)
+    if not os.path.exists(TEST_RESULT_SAVE_PATH):
+        os.makedirs(TEST_RESULT_SAVE_PATH)
+
+    # =========================== XGB专属 ================================#
+    version = 1
+    pool_nums = 30
+    xgb_thread_num = 1
+    xgb_boost_num = 50
     params, num_boost_round = get_local_xgb_para(xgb_thread_num=xgb_thread_num, num_boost_round=xgb_boost_num)
     xgb_model = get_xgb_model_pkl(is_transfer)
-    init_similar_weight = get_init_similar_weight()
 
-    """
-    version = 2  pca = 20 60 100 
-    version = 3  shap weight 100维度
-    version = 4  lr weight 100维度
-    version = 5  shap weight 1000
-    version = 6  lr weight 1000
-    version = 7  不进行 * 相似性度量会怎么样？
-    """
-    version = 7
-    # ================== save file name ====================
-    test_result_file_name = f"./result/S03_pca_xgb_test_tra{is_transfer}_comp{n_components}_v{version}.csv"
-    # =====================================================
+    my_logger.warning(f"[params] - local:{xgb_boost_num}, thread:{xgb_thread_num}, pool_nums:{pool_nums}, version:{version:{version}}")
+    # =========================== XGB专属 ================================#
+
+    my_logger.warning(
+        f"[params] - pool_nums:{pool_nums}, is_transfer:{is_transfer}, dim:{n_components}, test_idx_range:[{start_idx}, {end_idx}]")
+
+    # ================================== save file======================================
+    psm_file_name = f"S06_iter{learned_metric_iteration}_dim{n_components}_tra{is_transfer}_v{version}.csv"
+    test_result_file_name = f"S07_test_iter{learned_metric_iteration}_dim{n_components}_tra{is_transfer}_v{version}.csv"
+    # ================================== save file======================================
+
+    if learned_metric_iteration == 0:
+        psm_weight = get_init_similar_weight()
+    else:
+        psm_weight = pd.read_csv(os.path.join(PSM_SAVE_PATH, psm_file_name)).squeeze().tolist()
 
     # 获取数据
     train_data_x, train_data_y, test_data_x, test_data_y = get_train_test_x_y()
@@ -166,20 +175,16 @@ if __name__ == '__main__':
     test_data_y = test_data_y.iloc[start_idx:end_idx]
 
     # PCA降维
-    pca_train_data_x, pca_test_data_x = pca_reduction(train_data_x, test_data_x, init_similar_weight, n_components)
+    pca_train_data_x, pca_test_data_x = pca_reduction(train_data_x, test_data_x, psm_weight, n_components)
+    my_logger.warning("load data - train_data:{}, test_data:{}".format(train_data_x.shape, test_data_x.shape))
 
-    my_logger.warning(
-        f"[params] - version:{version}, transfer_flag:{transfer_flag}, pool_nums:{pool_nums}, "
-        f"test_idx:[{start_idx}, {end_idx}]")
-
-    # 10%匹配患者
     len_split = int(select_ratio * train_data_x.shape[0])
     test_id_list = pca_test_data_x.index.values
 
     test_result = pd.DataFrame(index=test_id_list, columns=['real', 'prob'])
     test_result['real'] = test_data_y
 
-    global_lock = threading.Lock()
+    global_lock = Lock()
     my_logger.warning("starting personalized modelling...")
     s_t = time.time()
     # 匹配相似样本（从训练集） XGB建模 多线程
@@ -195,8 +200,10 @@ if __name__ == '__main__':
     e_t = time.time()
     my_logger.warning(f"done - cost_time: {covert_time_format(e_t - s_t)}...")
 
+    test_result_file = os.path.join(TEST_RESULT_SAVE_PATH, test_result_file_name)
     # save concat test_result csv
-    if save_to_csv_by_row(test_result_file_name, test_result):
+    if save_to_csv_by_row(test_result_file, test_result):
         my_logger.info("save test result prob success!")
     else:
         my_logger.info("save error...")
+

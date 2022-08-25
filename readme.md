@@ -26,6 +26,8 @@ conda create
 cd 当前目录
 find . -mtime +5 -name "*.log" -exec rm -rf {} \;
 find . -name "0009*.log" -exec rm -rf {} \;
+## 移动日志 遍历当前目录
+find ./* -maxdepth 0 -name "*.csv" -exec mv {} ./history_log/ \;
 
 ### 查看日志
 - 按时间

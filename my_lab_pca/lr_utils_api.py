@@ -30,6 +30,7 @@ def get_init_similar_weight():
 def get_lr_init_similar_weight():
     return get_init_similar_weight()
 
+
 def get_transfer_weight(is_transfer):
     # 全局迁移策略 需要用到初始的csv
     if is_transfer == 1:
